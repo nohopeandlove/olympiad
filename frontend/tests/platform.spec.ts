@@ -23,7 +23,7 @@ test('Администратор видит отдельные олимпиад�
  await page.locator('main > .row select').selectOption({label:'Школьники · Олимпиада для школьников'});
  await page.getByRole('button',{name:'Настройки',exact:true}).click();await expect(page.getByLabel('Начало регистрации')).toBeVisible();
  await page.getByRole('button',{name:'Этапы',exact:true}).click();await expect(page.getByRole('heading',{name:'Отборочный этап'})).toBeVisible();
- await page.getByRole('button',{name:'Задания',exact:true}).click();await page.getByRole('button',{name:'Редактировать',exact:true}).first().click();await expect(page.getByRole('heading',{name:'Тесты',exact:true})).toBeVisible();await expect(page.getByLabel('Публичный пример')).toHaveCount(2);
+ await page.getByRole('button',{name:'Задания',exact:true}).click();await page.getByRole('button',{name:'Редактировать',exact:true}).first().click();await expect(page.getByRole('heading',{name:'Примеры проверки',exact:true})).toBeVisible();await expect(page.getByLabel('Публичный пример')).toHaveCount(2);
 });
 test('Monaco, отправка, восстановление черновика и разделение задач',async({page})=>{
  const faults:string[]=[];page.on('pageerror',e=>faults.push(e.message));
@@ -41,4 +41,21 @@ test('Monaco, отправка, восстановление черновика 
 test('Участник СПО получает только задачи СПО',async({page})=>{
  await login(page,'spo1@example.org');await page.getByRole('button',{name:/Начать этап|Продолжить этап/}).first().click();
  await expect(page.locator('.statement h2')).toHaveText('Сумма квадратов');await expect(page.getByText('Сумма двух чисел',{exact:true})).toHaveCount(0);
+});
+
+test('Упрощённая форма: пример, предпросмотр и сохранение',async({page})=>{
+ await login(page,'admin@example.org');await page.goto('/admin');
+ await page.locator('main > .row select').selectOption({label:'Школьники · Олимпиада для школьников'});
+ await page.getByRole('button',{name:'Задания',exact:true}).click();
+ await page.getByRole('button',{name:'+ Добавить задание',exact:true}).click();
+ await page.getByRole('button',{name:'Заполнить учебным примером',exact:true}).click();
+ await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Сумма двух чисел');
+ await page.getByRole('button',{name:'Посмотреть условие глазами участника'}).click();
+ await expect(page.locator('form').getByRole('heading',{name:'Сумма двух чисел',exact:true})).toBeVisible();
+ let payload:any;
+ await page.route('**/api/admin/stages/*/tasks',async route=>{if(route.request().method()==='POST'){payload=route.request().postDataJSON();await route.fulfill({status:201,json:{id:'test-task'}});}else await route.continue();});
+ await page.getByRole('button',{name:'Сохранить задание',exact:true}).click();
+ await expect(page.getByText('Изменения сохранены',{exact:true})).toBeVisible();
+ expect(payload.time_limit).toBe(2);expect(payload.memory_limit).toBe(128);
+ expect(payload.tests).toEqual([{input:'2 3\n',expected:'5\n',public:true},{input:'-10 7\n',expected:'-3\n',public:false}]);
 });
