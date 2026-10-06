@@ -59,3 +59,22 @@ test('Упрощённая форма: пример, предпросмотр и
  expect(payload.time_limit).toBe(2);expect(payload.memory_limit).toBe(128);
  expect(payload.tests).toEqual([{input:'2 3\n',expected:'5\n',public:true},{input:'-10 7\n',expected:'-3\n',public:false}]);
 });
+
+test('Космические шаблоны: пустой ввод, скрытые проверки и замена',async({page})=>{
+ await login(page,'admin@example.org');await page.goto('/admin');
+ await page.locator('main > .row select').selectOption({label:'Школьники · Олимпиада для школьников'});
+ await page.getByRole('button',{name:'Задания',exact:true}).click();await page.getByRole('button',{name:'+ Добавить задание',exact:true}).click();
+ const templates=page.getByRole('combobox',{name:'Готовая задача',exact:true});await expect(templates.locator('option')).toHaveCount(19);
+ await page.getByRole('button',{name:'Использовать выбранную задачу'}).click();
+ await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Тайное послание звёзд');
+ await expect(page.getByLabel('Вход',{exact:true})).toHaveValue('');
+ await expect(page.getByRole('textbox',{name:'Ожидаемый вывод',exact:true})).toHaveValue('Я звёздный путешественник!');
+ await templates.selectOption('20');page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Использовать выбранную задачу'}).click();
+ await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Тайное послание звёзд');
+ page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Использовать выбранную задачу'}).click();
+ await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Секреты звёздного рейтинга');
+ let payload:any;await page.route('**/api/admin/stages/*/tasks',async route=>{if(route.request().method()==='POST'){payload=route.request().postDataJSON();await route.fulfill({status:201,json:{id:'test-task'}});}else await route.continue();});
+ await page.getByRole('button',{name:'Сохранить задание',exact:true}).click();await expect(page.getByText('Изменения сохранены',{exact:true})).toBeVisible();
+ expect(payload.tests).toHaveLength(5);expect(payload.tests.filter((t:any)=>t.public)).toHaveLength(2);
+ expect(payload.tests).toContainEqual({input:'Луна',expected:'15',public:false});expect(payload.constraints).toContain('словарь');
+});
