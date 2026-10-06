@@ -1,0 +1,94 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: olympiad
+      POSTGRES_DB: olympiad
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-development}
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U olympiad -d olympiad"]
+      interval: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 128mb --maxmemory-policy noeviction
+    networks: [data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+  backend:
+    build: ./backend
+    environment: &backend_env
+      DATABASE_URL: postgresql+psycopg://olympiad:${POSTGRES_PASSWORD:-development}@postgres/olympiad
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: ${APP_ENV:-development}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8080}
+      JUDGE_URL: http://judge:9000
+      JUDGE_TOKEN: ${JUDGE_TOKEN:?Set JUDGE_TOKEN in .env}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-olympiad@localhost}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    command: sh -c 'alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-proxy-headers'
+    networks: [web, data]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 5s
+      retries: 20
+  worker:
+    build: ./backend
+    environment: *backend_env
+    command: celery -A app.jobs.celery worker --loglevel=INFO --concurrency=2
+    networks: [data, judging]
+    depends_on:
+      backend: {condition: service_healthy}
+      judge: {condition: service_started}
+  judge:
+    build: ./judge
+    environment:
+      JUDGE_TOKEN: ${JUDGE_TOKEN:?Set JUDGE_TOKEN in .env}
+      SANDBOX_IMAGE: olympiad-sandbox:local
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    networks: [judging]
+    depends_on:
+      sandbox-image: {condition: service_completed_successfully}
+  sandbox-image:
+    image: olympiad-sandbox:local
+    build:
+      context: ./judge
+      dockerfile: Dockerfile.sandbox
+    entrypoint: ["python3", "-c", "print('Sandbox image prepared')"]
+    network_mode: none
+  frontend:
+    build: ./frontend
+    environment:
+      HOSTNAME: 0.0.0.0
+    networks: [web]
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["127.0.0.1:8080:80"]
+    volumes: ["./infra/nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
+    networks: [web]
+    depends_on:
+      backend: {condition: service_healthy}
+      frontend: {condition: service_started}
+  mailpit:
+    image: axllent/mailpit:v1.24
+    ports: ["127.0.0.1:8025:8025"]
+    networks: [data, web]
+volumes:
+  postgres_data:
+networks:
+  web:
+  data:
+    internal: true
+  judging:
+    internal: true
