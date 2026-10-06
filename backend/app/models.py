@@ -85,6 +85,7 @@ class Task(Base):
     time_limit: Mapped[int] = mapped_column(default=2)
     memory_limit: Mapped[int] = mapped_column(default=128)
     points: Mapped[int] = mapped_column(default=100)
+    academy_chapter: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 class TestCase(Base):
     __tablename__ = 'test_cases'

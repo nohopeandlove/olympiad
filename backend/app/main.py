@@ -10,6 +10,7 @@ from .models import *
 from .schemas import *
 from .security import current_user, admin, limit, hasher, password_ok, dummy_hash, digest, new_session, exam_session
 from .config import settings
+from .academy import PACK, create_academy, academy_id, ordered_tasks, completed_chapters
 
 app = FastAPI(title='Python Олимпиады', version='1.0.0', docs_url='/api/docs', openapi_url='/api/openapi.json')
 
@@ -118,7 +119,7 @@ def logout(request:Request,response:Response,u:User=Depends(current_user),db:DBS
 def profile(request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
     regs=[]
     for r in db.scalars(select(Registration).where(Registration.user_id==u.id)):
-        regs.append(serialize(r)|{'olympiad':serialize(db.get(Olympiad,r.olympiad_id)),'stages':[serialize(s) for s in db.scalars(select(Stage).where(Stage.olympiad_id==r.olympiad_id))],'attempts':[serialize(a,('session_hash',)) for a in db.scalars(select(Attempt).where(Attempt.registration_id==r.id))]})
+        regs.append(serialize(r)|{'olympiad':serialize(db.get(Olympiad,r.olympiad_id)),'stages':[serialize(s)|{'academy_ending_unlocked':8 in completed_chapters(db,u.id,s.id)} for s in db.scalars(select(Stage).where(Stage.olympiad_id==r.olympiad_id))],'attempts':[serialize(a,('session_hash',)) for a in db.scalars(select(Attempt).where(Attempt.registration_id==r.id))]})
     return {'user':user_data(u),'csrf':request.state.session.csrf,'registrations':regs,'notifications':[serialize(n) for n in db.scalars(select(Notification).where(Notification.user_id==u.id))],'submissions':[serialize(s,('code',)) for s in db.scalars(select(Submission).where(Submission.user_id==u.id).order_by(Submission.created_at.desc()).limit(100))],'server_time':now()}
 
 @app.post('/api/registrations/{oid}',status_code=201)
@@ -155,7 +156,19 @@ def finish(sid:str,request:Request,u:User=Depends(current_user),db:DBSession=Dep
 @app.get('/api/stages/{sid}/tasks')
 def tasks(sid:str,request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
     s=get_or_404(db,Stage,sid); active_attempt(db,u,s,request)
-    return [serialize(t)|{'examples':[serialize(c,('task_id',)) for c in db.scalars(select(TestCase).where(TestCase.task_id==t.id,TestCase.public==True))]} for t in db.scalars(select(Task).where(Task.stage_id==sid,Task.olympiad_id==s.olympiad_id))]
+    return [serialize(t)|{'examples':[serialize(c,('task_id',)) for c in db.scalars(select(TestCase).where(TestCase.task_id==t.id,TestCase.public==True))]} for t in ordered_tasks(db.scalars(select(Task).where(Task.stage_id==sid,Task.olympiad_id==s.olympiad_id)))]
+
+@app.get('/api/stages/{sid}/academy-ending')
+def academy_ending(sid:str,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
+    stage=get_or_404(db,Stage,sid); registration(db,u,stage.olympiad_id)
+    if 8 not in completed_chapters(db,u.id,sid): raise HTTPException(403,'Финал откроется после решения «Последнего протокола»')
+    return {'title':'Ядро восстановлено. Но кто такой Null?', 'text':PACK['finale']}
+
+@app.get('/api/stages/{sid}/academy-progress')
+def academy_progress(sid:str,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
+    stage=get_or_404(db,Stage,sid); registration(db,u,stage.olympiad_id)
+    chapters=completed_chapters(db,u.id,sid)
+    return {'completed_chapters':chapters,'ending_unlocked':8 in chapters}
 
 @app.get('/api/tasks/{tid}/draft')
 def get_draft(tid:str,request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
@@ -291,7 +304,24 @@ def update_stage(sid:str,data:StageInput,u:User=Depends(admin),db:DBSession=Depe
 
 @app.get('/api/admin/stages/{sid}/tasks')
 def admin_tasks(sid:str,u:User=Depends(admin),db:DBSession=Depends(get_db)):
-    return [serialize(t)|{'tests':[serialize(c) for c in db.scalars(select(TestCase).where(TestCase.task_id==t.id))]} for t in db.scalars(select(Task).where(Task.stage_id==sid))]
+    return [serialize(t)|{'tests':[serialize(c) for c in db.scalars(select(TestCase).where(TestCase.task_id==t.id))]} for t in ordered_tasks(db.scalars(select(Task).where(Task.stage_id==sid)))]
+
+@app.get('/api/admin/task-packs/academy')
+def academy_pack(u:User=Depends(admin)):
+    return {k:v for k,v in PACK.items() if k!='finale'}
+
+@app.post('/api/admin/adventures/academy',status_code=201)
+def install_academy(data:AcademyInput,u:User=Depends(admin),db:DBSession=Depends(get_db)):
+    try:
+        event,created=create_academy(db,data.type)
+        if created: audit(db,u,'CREATE_ACADEMY',event.id)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        event=db.get(Olympiad,academy_id(data.type))
+        if not event: raise
+        created=False
+    return {'olympiad':serialize(event),'created':created}
 
 @app.post('/api/admin/stages/{sid}/tasks',status_code=201)
 def create_task(sid:str,data:TaskInput,u:User=Depends(admin),db:DBSession=Depends(get_db)):

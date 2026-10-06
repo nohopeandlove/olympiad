@@ -85,7 +85,11 @@ class TaskInput(Strict):
     time_limit: int = Field(default=2, ge=1, le=10)
     memory_limit: int = Field(default=128, ge=32, le=256)
     points: int = Field(default=100, ge=1, le=1000)
+    academy_chapter: int | None = Field(default=None, ge=1, le=8)
     tests: list[CaseInput] = Field(min_length=1, max_length=50)
+
+class AcademyInput(Strict):
+    type: Literal['SCHOOL','SPO']
 
 class CodeInput(BaseModel):
     model_config = ConfigDict(extra='forbid')

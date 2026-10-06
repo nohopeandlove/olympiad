@@ -11,10 +11,10 @@ async function login(page:any,email:string){
 await page.goto('/login');await page.getByLabel('Email',{exact:true}).fill(email);await page.getByLabel('Пароль',{exact:true}).fill(PASSWORD);await page.getByRole('button',{name:'Войти',exact:true}).click();await expect(page).toHaveURL(/dashboard/);}
 test('Главная и отдельные регистрационные формы',async({page})=>{
  await page.goto('/');await expect(page.getByRole('heading',{name:'Выбери свою олимпиаду'})).toBeVisible();
- const cards=page.locator('article');await expect(cards).toHaveCount(2);
- await cards.filter({hasText:'Для школьников'}).getByRole('link',{name:/Зарегистрироваться/}).click();
+ const cards=page.locator('article');await expect(cards.filter({has:page.getByRole('heading',{name:'Олимпиада для школьников',exact:true})})).toHaveCount(1);await expect(cards.filter({has:page.getByRole('heading',{name:'Олимпиада для студентов СПО',exact:true})})).toHaveCount(1);
+ await cards.filter({has:page.getByRole('heading',{name:'Олимпиада для школьников',exact:true})}).getByRole('link',{name:/Зарегистрироваться/}).click();
  await expect(page.getByRole('combobox',{name:'Класс',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'Курс',exact:true})).toHaveCount(0);await expect(page.getByText(/наставник/i)).toHaveCount(0);
- await page.goto('/');await page.locator('article').filter({hasText:'1 и 2 курс СПО'}).getByRole('link',{name:/Зарегистрироваться/}).click();
+ await page.goto('/');await page.locator('article').filter({has:page.getByRole('heading',{name:'Олимпиада для студентов СПО',exact:true})}).getByRole('link',{name:/Зарегистрироваться/}).click();
  await expect(page.getByRole('combobox',{name:'Курс',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'Класс',exact:true})).toHaveCount(0);await expect(page.getByText(/наставник/i)).toHaveCount(0);
 });
 test('Администратор видит отдельные олимпиады, этапы и скрытые тесты',async({page})=>{
@@ -60,21 +60,79 @@ test('Упрощённая форма: пример, предпросмотр и
  expect(payload.tests).toEqual([{input:'2 3\n',expected:'5\n',public:true},{input:'-10 7\n',expected:'-3\n',public:false}]);
 });
 
-test('Космические шаблоны: пустой ввод, скрытые проверки и замена',async({page})=>{
+test('Шаблоны Академии: глава, скрытые проверки и замена',async({page})=>{
  await login(page,'admin@example.org');await page.goto('/admin');
  await page.locator('main > .row select').selectOption({label:'Школьники · Олимпиада для школьников'});
  await page.getByRole('button',{name:'Задания',exact:true}).click();await page.getByRole('button',{name:'+ Добавить задание',exact:true}).click();
- const templates=page.getByRole('combobox',{name:'Готовая задача',exact:true});await expect(templates.locator('option')).toHaveCount(19);
- await page.getByRole('button',{name:'Использовать выбранную задачу'}).click();
- await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Тайное послание звёзд');
- await expect(page.getByLabel('Вход',{exact:true})).toHaveValue('');
- await expect(page.getByRole('textbox',{name:'Ожидаемый вывод',exact:true})).toHaveValue('Я звёздный путешественник!');
- await templates.selectOption('20');page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Использовать выбранную задачу'}).click();
- await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Тайное послание звёзд');
- page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Использовать выбранную задачу'}).click();
- await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Секреты звёздного рейтинга');
+ const templates=page.getByRole('combobox',{name:'Глава приключения',exact:true});await expect(templates.locator('option')).toHaveCount(8);
+ await page.getByRole('button',{name:'Использовать выбранную главу'}).click();
+ await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Код от двери');
+ await expect(page.getByRole('textbox',{name:'Вход',exact:true}).first()).toHaveValue('5072');
+ await expect(page.getByRole('textbox',{name:'Ожидаемый вывод',exact:true}).first()).toHaveValue('14');
+ await templates.selectOption('2');page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Использовать выбранную главу'}).click();
+ await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Код от двери');
+ page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Использовать выбранную главу'}).click();
+ await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Повреждённый пропуск');
  let payload:any;await page.route('**/api/admin/stages/*/tasks',async route=>{if(route.request().method()==='POST'){payload=route.request().postDataJSON();await route.fulfill({status:201,json:{id:'test-task'}});}else await route.continue();});
  await page.getByRole('button',{name:'Сохранить задание',exact:true}).click();await expect(page.getByText('Изменения сохранены',{exact:true})).toBeVisible();
- expect(payload.tests).toHaveLength(5);expect(payload.tests.filter((t:any)=>t.public)).toHaveLength(2);
- expect(payload.tests).toContainEqual({input:'Луна',expected:'15',public:false});expect(payload.constraints).toContain('словарь');
+ expect(payload.tests).toHaveLength(8);expect(payload.tests.filter((t:any)=>t.public)).toHaveLength(2);expect(payload.academy_chapter).toBe(2);
+ expect(payload.tests).toContainEqual({input:'5\n3 3 2 2 1',expected:'2',public:false});expect(payload.statement).toContain('различное');
+});
+
+test('Главная Академии: восемь глав и мобильная версия',async({page})=>{
+ await page.setViewportSize({width:1440,height:1000});await page.goto('/');
+ await expect(page.getByRole('heading',{level:1})).toContainText('Сбой в Академии');
+ await expect(page.locator('.chapter-card')).toHaveCount(8);
+ await page.screenshot({path:'/tmp/academy-home-desktop.png',fullPage:false});
+ await page.setViewportSize({width:390,height:844});await page.reload();
+ await expect(page.locator('.chapter-card')).toHaveCount(8);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ await page.getByRole('link',{name:'Посмотреть главы ↓'}).click();await expect(page).toHaveURL(/#mission-map$/);
+ await expect(page.getByRole('heading',{name:'Восемь глав. Одна миссия.'})).toBeInViewport();
+ await page.screenshot({path:'/tmp/academy-home-mobile.png',fullPage:true});
+});
+
+test('Создание всего приключения из панели администратора',async({page})=>{
+ await login(page,'admin@example.org');await page.goto('/admin');
+ await page.getByLabel('Для кого приключение').selectOption('SPO');
+ await page.getByRole('button',{name:'Создать приключение',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Редактировать',exact:true})).toHaveCount(8);
+ await expect(page.getByRole('heading',{name:'Код от двери',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Последний протокол',exact:true})).toBeVisible();
+ await expect(page.locator('.notice')).toContainText(/Приключение создано|Эта олимпиада уже создана/);
+ await page.getByRole('button',{name:'Создать приключение',exact:true}).click();
+ await expect(page.locator('.notice')).toContainText('Эта олимпиада уже создана');
+ await expect(page.getByRole('button',{name:'Редактировать',exact:true})).toHaveCount(8);
+ await page.getByRole('button',{name:'Настройки',exact:true}).click();
+ await expect(page.getByRole('combobox',{name:'Статус',exact:true})).toHaveValue('draft');
+ await expect(page.getByRole('option',{name:'Олимпиада открыта',exact:true})).toHaveCount(1);
+});
+
+test('Приключение: решение последней главы, прогресс и финал',async({page})=>{
+ test.setTimeout(90000);
+ const admin=await request.newContext({baseURL:'http://localhost:8080',extraHTTPHeaders:{Origin:'http://localhost:8080'}});
+ const logged=await admin.post('/api/auth/login',{data:{email:'admin@example.org',password:PASSWORD}});expect(logged.status()).toBe(200);
+ const auth=await logged.json(),csrf={'X-CSRF-Token':auth.csrf};
+ const now=Date.now(),event={type:'SCHOOL',title:'Academy browser '+now,status:'active',registration_start:new Date(now-86400000).toISOString(),registration_end:new Date(now+86400000).toISOString()};
+ const created=await admin.post('/api/admin/olympiads',{headers:csrf,data:event});expect(created.status()).toBe(201);const oid=(await created.json()).id;
+ try{
+  const stage=await admin.post('/api/admin/olympiads/'+oid+'/stages',{headers:csrf,data:{title:'Восемь глав Академии',kind:'main',starts_at:new Date(now-60000).toISOString(),ends_at:new Date(now+86400000).toISOString(),duration_minutes:180}});expect(stage.status()).toBe(201);const sid=(await stage.json()).id;
+  const pack=await(await admin.get('/api/admin/task-packs/academy')).json();
+  for(const chapter of pack.tasks){const {chapter:number,stars,topic,...fields}=chapter;const response=await admin.post('/api/admin/stages/'+sid+'/tasks',{headers:csrf,data:{...fields,academy_chapter:number}});expect(response.status()).toBe(201);}
+  await login(page,'school@example.org');
+  const profile=await(await page.request.get('/api/profile')).json();
+  const joined=await page.request.post('/api/registrations/'+oid,{headers:{Origin:'http://localhost:8080','X-CSRF-Token':profile.csrf},data:{school_class:9,consent_data:true,consent_rules:true}});expect(joined.status()).toBe(201);
+  await page.goto('/exam/'+sid);await expect(page.locator('.monaco-editor')).toBeVisible({timeout:20000});
+  await expect(page.getByText('Пройдено 0 из 8 глав',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Открыть финал приключения'})).toHaveCount(0);
+  const loaded=page.waitForResponse(r=>r.url().endsWith('/draft')&&r.request().method()==='GET');await page.getByRole('button',{name:'Глава 8: Последний протокол',exact:true}).click();await loaded;await expect(page.locator('.statement h2')).toHaveText('Последний протокол');
+  const code='from collections import deque\nn=int(input())\na=[int(x)-1 for x in input().split()]\nd=[-1]*n\nd[0]=0\nq=deque([0])\nwhile q:\n    v=q.popleft()\n    if v==n-1: break\n    for u in (v-1,v+1,a[v]):\n        if 0<=u<n and d[u]<0:\n            d[u]=d[v]+1\n            q.append(u)\nprint(d[-1])\n';
+  await page.locator('.monaco-editor textarea').focus();await page.keyboard.press('Control+A');await page.context().grantPermissions(['clipboard-read','clipboard-write']);await page.evaluate(text=>navigator.clipboard.writeText(text),code);await page.keyboard.press('Control+V');
+  await page.getByRole('button',{name:'Отправить решение',exact:true}).click();await expect(page.locator('.console')).toContainText('Accepted',{timeout:60000});
+  await expect(page.getByText('Пройдено 1 из 8 глав',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Открыть финал приключения',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Ядро восстановлено. Но кто такой Null?'})).toBeVisible();await expect(page.locator('.academy-ending')).toContainText('забытый ИИ');
+  await page.screenshot({path:'/tmp/academy-exam.png',fullPage:true});
+  await page.reload();await expect(page.getByText('Пройдено 1 из 8 глав',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Открыть финал приключения',exact:true})).toBeVisible();
+  await page.goto('/dashboard');const storyCard=page.locator('section.card').filter({has:page.getByRole('heading',{name:event.title,exact:true})});await storyCard.getByRole('button',{name:'Открыть финал приключения',exact:true}).click();await expect(storyCard.locator('.academy-ending')).toContainText('забытый ИИ');
+ }finally{await admin.put('/api/admin/olympiads/'+oid,{headers:csrf,data:{...event,status:'draft'}});await admin.dispose();}
 });
