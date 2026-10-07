@@ -79,16 +79,16 @@ test('Шаблоны Академии: глава, скрытые проверк
  expect(payload.tests).toContainEqual({input:'5\n3 3 2 2 1',expected:'2',public:false});expect(payload.statement).toContain('различное');
 });
 
-test('Главная Академии: восемь глав и мобильная версия',async({page})=>{
+test('Главная Академии: опубликованные главы и мобильная версия',async({page})=>{
  await page.setViewportSize({width:1440,height:1000});await page.goto('/');
  await expect(page.getByRole('heading',{level:1})).toContainText('Сбой в Академии');
- await expect(page.locator('.chapter-card')).toHaveCount(8);
+ await expect(page.locator('.chapter-card').first()).toBeVisible();
  await page.screenshot({path:'/tmp/academy-home-desktop.png',fullPage:false});
  await page.setViewportSize({width:390,height:844});await page.reload();
- await expect(page.locator('.chapter-card')).toHaveCount(8);
+ await expect(page.locator('.chapter-card').first()).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
  await page.getByRole('link',{name:'Посмотреть главы ↓'}).click();await expect(page).toHaveURL(/#mission-map$/);
- await expect(page.getByRole('heading',{name:'Восемь глав. Одна миссия.'})).toBeInViewport();
+ await expect(page.getByRole('heading',{name:'Главы приключения'})).toBeInViewport();
  await page.screenshot({path:'/tmp/academy-home-mobile.png',fullPage:true});
 });
 
@@ -134,5 +134,27 @@ test('Приключение: решение последней главы, пр
   await page.screenshot({path:'/tmp/academy-exam.png',fullPage:true});
   await page.reload();await expect(page.getByText('Пройдено 1 из 8 глав',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Открыть финал приключения',exact:true})).toBeVisible();
   await page.goto('/dashboard');const storyCard=page.locator('section.card').filter({has:page.getByRole('heading',{name:event.title,exact:true})});await storyCard.getByRole('button',{name:'Открыть финал приключения',exact:true}).click();await expect(storyCard.locator('.academy-ending')).toContainText('забытый ИИ');
+ }finally{await admin.put('/api/admin/olympiads/'+oid,{headers:csrf,data:{...event,status:'draft'}});await admin.dispose();}
+});
+
+
+test('Главная отражает добавление и переименование заданий опубликованного этапа',async({page})=>{
+ const admin=await request.newContext({baseURL:'http://localhost:8080',extraHTTPHeaders:{Origin:'http://localhost:8080'}});
+ const logged=await admin.post('/api/auth/login',{data:{email:'admin@example.org',password:PASSWORD}});expect(logged.status()).toBe(200);
+ const csrf={'X-CSRF-Token':(await logged.json()).csrf};const now=Date.now();
+ const event={type:'SCHOOL',title:'Live chapters '+now,status:'scheduled',registration_start:new Date(now).toISOString(),registration_end:new Date(now+86400000).toISOString()};
+ const created=await admin.post('/api/admin/olympiads',{headers:csrf,data:event});expect(created.status()).toBe(201);const oid=(await created.json()).id;
+ try{
+  const stage=await admin.post('/api/admin/olympiads/'+oid+'/stages',{headers:csrf,data:{title:'Живые главы',kind:'main',starts_at:new Date(now+86400000).toISOString(),ends_at:new Date(now+172800000).toISOString(),duration_minutes:120}});expect(stage.status()).toBe(201);const sid=(await stage.json()).id;
+  const fields={title:'Учебная дверь',statement:'private_statement',academy_chapter:1,tests:[{input:'private_input',expected:'private_output',public:false}]};
+  const task=await admin.post('/api/admin/stages/'+sid+'/tasks',{headers:csrf,data:fields});expect(task.status()).toBe(201);const tid=(await task.json()).id;
+  await page.goto('/');const selector=page.getByRole('combobox',{name:'Олимпиада и этап',exact:true});await selector.selectOption(sid);
+  await expect(page.locator('.chapter-card')).toHaveCount(1);await expect(page.locator('.chapter-grid')).toContainText('Учебная дверь');
+  const published=await page.request.get('/api/olympiads');const content=await published.text();for(const secret of ['private_statement','private_input','private_output'])expect(content).not.toContain(secret);
+  expect((await admin.put('/api/admin/tasks/'+tid,{headers:csrf,data:{...fields,title:'Новый код от двери'}})).status()).toBe(200);
+  expect((await admin.post('/api/admin/stages/'+sid+'/tasks',{headers:csrf,data:{...fields,title:'Дополнительный коридор',academy_chapter:null}})).status()).toBe(201);
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(page.locator('.chapter-card')).toHaveCount(2);
+  await expect(page.locator('.chapter-grid')).toContainText('Новый код от двери');await expect(page.locator('.chapter-grid')).toContainText('Дополнительный коридор');await expect(page.locator('.chapter-grid')).not.toContainText('Учебная дверь');
+  await admin.put('/api/admin/olympiads/'+oid,{headers:csrf,data:{...event,status:'draft'}});await page.reload();await expect(selector.locator('option[value="'+sid+'"]')).toHaveCount(0);
  }finally{await admin.put('/api/admin/olympiads/'+oid,{headers:csrf,data:{...event,status:'draft'}});await admin.dispose();}
 });

@@ -56,15 +56,22 @@ def health(db: DBSession=Depends(get_db)):
     db.execute(select(1))
     return {'status':'ok','server_time':now()}
 
+def public_stages(db, oid):
+    result=[]
+    for stage in db.scalars(select(Stage).where(Stage.olympiad_id==oid).order_by(Stage.starts_at)):
+        chapters=[{'id':t.id,'title':t.title,'points':t.points,'difficulty':t.difficulty,'academy_chapter':t.academy_chapter} for t in ordered_tasks(db.scalars(select(Task).where(Task.stage_id==stage.id,Task.olympiad_id==oid)))]
+        result.append(serialize(stage)|{'chapters':chapters})
+    return result
+
 @app.get('/api/olympiads')
 def olympiads(db: DBSession=Depends(get_db)):
-    return [serialize(o) | {'stages':[serialize(s) for s in db.scalars(select(Stage).where(Stage.olympiad_id==o.id).order_by(Stage.starts_at))]} for o in db.scalars(select(Olympiad).where(Olympiad.status!='draft').order_by(Olympiad.type,Olympiad.title))]
+    return [serialize(o) | {'stages':public_stages(db,o.id)} for o in db.scalars(select(Olympiad).where(Olympiad.status!='draft').order_by(Olympiad.type,Olympiad.title))]
 
 @app.get('/api/olympiads/{oid}')
 def olympiad(oid:str,db:DBSession=Depends(get_db)):
     o=get_or_404(db,Olympiad,oid)
     if o.status=='draft': raise HTTPException(404,'Не найдено')
-    return serialize(o)|{'stages':[serialize(s) for s in db.scalars(select(Stage).where(Stage.olympiad_id==oid).order_by(Stage.starts_at))]}
+    return serialize(o)|{'stages':public_stages(db,oid)}
 
 @app.post('/api/auth/register',status_code=201)
 def register(data:Register,request:Request,db:DBSession=Depends(get_db)):
