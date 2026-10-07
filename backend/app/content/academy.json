@@ -1,6 +1,6 @@
 {
-  "key": "academy-null-v1",
-  "title": "Сбой в Академии Алгоритмов",
+  "key": "academy-null-v2",
+  "title": "Сбой в Академии Алгоритмов — два этапа",
   "intro": "В городе Питония Академия Алгоритмов управляет дверями, транспортом и энергосистемой. Ночью неизвестный вирус Null захватил главный сервер. Ты — ученик-программист, оказавшийся внутри Академии. Восстанови доступ, доберись до серверной и останови сбой.",
   "finale": "Доступ к ядру восстановлен. На экране появляется архив: NULL / экспериментальный интеллект Академии. Это не чужой вирус, а забытый ИИ, который всё ещё выполняет старый протокол. «Вы нашли меня. Теперь помогите понять, кто изменил мои инструкции». Питония снова работает, но история только начинается. Продолжение — во второй олимпиаде.",
   "tasks": [
@@ -58,7 +58,41 @@
           "expected": "10",
           "public": false
         }
-      ]
+      ],
+      "key": "1",
+      "kind": "code",
+      "stage_kind": "qualifying",
+      "position": 1,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "key": "q1",
+      "chapter": null,
+      "stars": 1,
+      "topic": "Контрольный вопрос",
+      "title": "Диагностика панели",
+      "kind": "choice",
+      "stage_kind": "qualifying",
+      "position": 2,
+      "statement": "Панель двери получила строку с целым числом. Какая команда считывает введённое число и сохраняет его как целое в переменной `n`?",
+      "input_description": "",
+      "output_description": "",
+      "constraints": "",
+      "difficulty": "easy",
+      "points": 50,
+      "time_limit": 2,
+      "memory_limit": 128,
+      "tests": [],
+      "answer_options": [
+        "n = int(input())",
+        "n = input()",
+        "n = str(input())",
+        "n = float(\"число\")"
+      ],
+      "correct_option": 0,
+      "rubric": ""
     },
     {
       "chapter": 2,
@@ -114,7 +148,36 @@
           "expected": "41",
           "public": false
         }
-      ]
+      ],
+      "key": "2",
+      "kind": "code",
+      "stage_kind": "qualifying",
+      "position": 3,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "key": "q2",
+      "chapter": null,
+      "stars": 1,
+      "topic": "Контрольный вопрос",
+      "title": "Архив уровней",
+      "kind": "text",
+      "stage_kind": "qualifying",
+      "position": 4,
+      "statement": "В архиве сохранились уровни доступа `9, 9, 7`. Объясните, почему второй **различный** по величине уровень равен 7, а не 9. Как нужно обработать повторения? Что должна вывести программа, если различных уровней меньше двух?",
+      "input_description": "",
+      "output_description": "",
+      "constraints": "",
+      "difficulty": "easy",
+      "points": 50,
+      "time_limit": 2,
+      "memory_limit": 128,
+      "tests": [],
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": "50 баллов: 20 — объяснено, что уровни должны быть различными и повторения не считаются; 20 — верно разобран пример 9, 9, 7 → 7; 10 — указано NO при менее чем двух различных уровнях."
     },
     {
       "chapter": 3,
@@ -180,7 +243,41 @@
           "expected": "YES",
           "public": false
         }
-      ]
+      ],
+      "key": "3",
+      "kind": "code",
+      "stage_kind": "qualifying",
+      "position": 5,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "key": "q3",
+      "chapter": null,
+      "stars": 1,
+      "topic": "Контрольный вопрос",
+      "title": "Проверка сообщения",
+      "kind": "choice",
+      "stage_kind": "qualifying",
+      "position": 6,
+      "statement": "Null оставил сообщение `abca`. Требуется удалить ровно один символ, чтобы получить палиндром. Какой вывод верен?",
+      "input_description": "",
+      "output_description": "",
+      "constraints": "",
+      "difficulty": "easy",
+      "points": 50,
+      "time_limit": 2,
+      "memory_limit": 128,
+      "tests": [],
+      "answer_options": [
+        "Можно удалить b или c и получить палиндром",
+        "Нужно удалить два символа",
+        "Нужно оставить строку без изменений",
+        "Получить палиндром невозможно"
+      ],
+      "correct_option": 0,
+      "rubric": ""
     },
     {
       "chapter": 4,
@@ -236,7 +333,36 @@
           "expected": "2",
           "public": false
         }
-      ]
+      ],
+      "key": "4",
+      "kind": "code",
+      "stage_kind": "qualifying",
+      "position": 7,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "key": "q4",
+      "chapter": null,
+      "stars": 1,
+      "topic": "Контрольный вопрос",
+      "title": "Отчёт об энерготоннеле",
+      "kind": "text",
+      "stage_kind": "qualifying",
+      "position": 8,
+      "statement": "Энергии платформ: `1, 2, 2, 3, 4`. Объясните, где прерывается строго возрастающий участок и какова длина самого длинного непрерывного участка. Можно ли пропускать платформы при подсчёте? Обоснуйте ответ.",
+      "input_description": "",
+      "output_description": "",
+      "constraints": "",
+      "difficulty": "easy",
+      "points": 50,
+      "time_limit": 2,
+      "memory_limit": 128,
+      "tests": [],
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": "50 баллов: 20 — равные соседние значения 2 прерывают строгое возрастание; 20 — найден участок 2, 3, 4 длиной 3; 10 — объяснено, что участок непрерывный и пропускать платформы нельзя."
     },
     {
       "chapter": 5,
@@ -292,7 +418,14 @@
           "expected": "227737",
           "public": false
         }
-      ]
+      ],
+      "key": "5",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 1,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
     },
     {
       "chapter": 6,
@@ -348,7 +481,14 @@
           "expected": "149",
           "public": false
         }
-      ]
+      ],
+      "key": "6",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 2,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
     },
     {
       "chapter": 7,
@@ -414,7 +554,14 @@
           "expected": "2500",
           "public": false
         }
-      ]
+      ],
+      "key": "7",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 3,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
     },
     {
       "chapter": 8,
@@ -475,7 +622,28 @@
           "expected": "11",
           "public": false
         }
-      ]
+      ],
+      "key": "8",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 4,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    }
+  ],
+  "stages": [
+    {
+      "kind": "qualifying",
+      "title": "Отборочный · Побег из учебного корпуса",
+      "duration_minutes": 120,
+      "story_intro": "Питония погрузилась во тьму. Null заблокировал учебный корпус Академии. Вы оказались у закрытой двери: восстановите пропуск, расшифруйте сообщение и пройдите энергетический тоннель. Между главами аварийная система задаёт контрольные вопросы — ей нужно убедиться, что вы понимаете свои решения."
+    },
+    {
+      "kind": "main",
+      "title": "Основной · Доступ к ядру Null",
+      "duration_minutes": 180,
+      "story_intro": "Вы выбрались из учебного корпуса и прошли энергетический тоннель. Но Питония всё ещё отключена: главный ключ спрятан, коридоры заблокированы, серверная обесточена. Найдите два ключа, проложите путь, восстановите питание и доберитесь до ядра, пока Null не уничтожил систему."
     }
   ]
 }

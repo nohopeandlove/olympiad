@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from app.schemas import Register, TaskInput, StageInput
+from app.schemas import Register, TaskInput, StageInput, OlympiadInput
 
 def test_no_mentor_fields():
     with pytest.raises(ValidationError):
@@ -12,3 +12,11 @@ def test_resource_limits():
 
 def test_stage_timezone_required():
     with pytest.raises(ValidationError):StageInput(title='T',kind='main',starts_at='2026-10-01T00:00:00',ends_at='2026-10-02T00:00:00',duration_minutes=60)
+
+@pytest.mark.parametrize('classes',[[9],[9,10],[10,11,9],[10,10]])
+def test_school_grades_only_ten_and_eleven(classes):
+    with pytest.raises(ValidationError):OlympiadInput(type='SCHOOL',title='T',allowed_classes=classes,registration_start='2026-10-01T00:00:00Z',registration_end='2026-10-02T00:00:00Z')
+
+def test_legacy_spo_unused_school_classes_remain_editable():
+    event=OlympiadInput(type='SPO',title='T',allowed_classes=[7,8,9,10,11],registration_start='2026-10-01T00:00:00Z',registration_end='2026-10-02T00:00:00Z')
+    assert event.type=='SPO'

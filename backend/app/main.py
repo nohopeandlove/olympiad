@@ -11,6 +11,7 @@ from .schemas import *
 from .security import current_user, admin, limit, hasher, password_ok, dummy_hash, digest, new_session, exam_session
 from .config import settings
 from .academy import PACK, create_academy, academy_id, ordered_tasks, completed_chapters
+from .task_timing import checkpoint, snapshot
 
 app = FastAPI(title='Python Олимпиады', version='1.0.0', docs_url='/api/docs', openapi_url='/api/openapi.json')
 
@@ -35,11 +36,13 @@ def registration(db,user,oid):
     row=db.scalar(select(Registration).where(Registration.user_id==user.id,Registration.olympiad_id==oid))
     if not row or row.status!='registered': raise HTTPException(403,'Нет действующей регистрации на эту олимпиаду')
     if not user.verified: raise HTTPException(403,'Подтвердите email')
+    o=db.get(Olympiad,oid)
+    if o.type=='SCHOOL' and row.school_class not in (10,11): raise HTTPException(403,'Участие доступно только школьникам 10 и 11 классов')
     return row
 
 def valid_registration(o,data):
     if o.status not in ('scheduled','active') or not o.registration_start <= now() < o.registration_end: raise HTTPException(403,'Регистрация закрыта')
-    if o.type=='SCHOOL' and (data.school_class not in o.allowed_classes or data.course is not None or data.group): raise HTTPException(422,'Выберите допустимый класс; курс и группа не допускаются')
+    if o.type=='SCHOOL' and (data.school_class not in (10,11) or data.school_class not in o.allowed_classes or data.course is not None or data.group): raise HTTPException(422,'Для школьников доступны только 10 и 11 классы; курс и группа не допускаются')
     if o.type=='SPO' and (data.course not in (1,2) or data.school_class is not None): raise HTTPException(422,'Для СПО допустим только 1 или 2 курс')
     if not data.consent_data or not data.consent_rules: raise HTTPException(422,'Необходимо согласие')
 
@@ -59,7 +62,7 @@ def health(db: DBSession=Depends(get_db)):
 def public_stages(db, oid):
     result=[]
     for stage in db.scalars(select(Stage).where(Stage.olympiad_id==oid).order_by(Stage.starts_at)):
-        chapters=[{'id':t.id,'title':t.title,'points':t.points,'difficulty':t.difficulty,'academy_chapter':t.academy_chapter} for t in ordered_tasks(db.scalars(select(Task).where(Task.stage_id==stage.id,Task.olympiad_id==oid)))]
+        chapters=[{'id':t.id,'title':t.title,'points':t.points,'difficulty':t.difficulty,'academy_chapter':t.academy_chapter,'kind':t.kind} for t in ordered_tasks(db.scalars(select(Task).where(Task.stage_id==stage.id,Task.olympiad_id==oid)))]
         result.append(serialize(stage)|{'chapters':chapters})
     return result
 
@@ -158,12 +161,39 @@ def start(sid:str,request:Request,u:User=Depends(current_user),db:DBSession=Depe
 
 @app.post('/api/stages/{sid}/finish')
 def finish(sid:str,request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
-    a=active_attempt(db,u,get_or_404(db,Stage,sid),request); a.finished=True; db.commit(); return {'message':'Этап завершён'}
+    stage=get_or_404(db,Stage,sid); a=active_attempt(db,u,stage,request)
+    a=db.scalar(select(Attempt).where(Attempt.id==a.id).with_for_update().execution_options(populate_existing=True))
+    checkpoint(db,a,stage);a.active_task_id=None;a.finished=True;db.commit();return {'message':'Этап завершён'}
 
 @app.get('/api/stages/{sid}/tasks')
 def tasks(sid:str,request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
     s=get_or_404(db,Stage,sid); active_attempt(db,u,s,request)
-    return [serialize(t)|{'examples':[serialize(c,('task_id',)) for c in db.scalars(select(TestCase).where(TestCase.task_id==t.id,TestCase.public==True))]} for t in ordered_tasks(db.scalars(select(Task).where(Task.stage_id==sid,Task.olympiad_id==s.olympiad_id)))]
+    result=[]
+    for t in ordered_tasks(db.scalars(select(Task).where(Task.stage_id==sid,Task.olympiad_id==s.olympiad_id))):
+        submitted=db.scalar(select(Submission).where(Submission.task_id==t.id,Submission.user_id==u.id,Submission.mode=='submit').order_by(Submission.created_at.desc()).limit(1))
+        result.append(serialize(t,('correct_option','rubric'))|{'examples':[serialize(c,('task_id',)) for c in db.scalars(select(TestCase).where(TestCase.task_id==t.id,TestCase.public==True))],'my_submission':serialize(submitted) if submitted else None})
+    return result
+
+@app.post('/api/stages/{sid}/task-focus')
+def task_focus(sid:str,data:TaskFocusInput,request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
+    stage=get_or_404(db,Stage,sid);a=active_attempt(db,u,stage,request);limit('timing:'+u.id,60,60)
+    if data.task_id:
+        task=get_or_404(db,Task,data.task_id)
+        if task.stage_id!=sid or task.olympiad_id!=stage.olympiad_id:raise HTTPException(403,'Задание относится к другому этапу')
+    a=db.scalar(select(Attempt).where(Attempt.id==a.id).with_for_update().execution_options(populate_existing=True))
+    if a.finished or now()>=a.deadline or a.session_hash!=exam_session(request):raise HTTPException(409,'Сессия этапа изменилась')
+    timestamp=now();checkpoint(db,a,stage,timestamp);a.active_task_id=data.task_id
+    if data.task_id and not db.scalar(select(TaskTime).where(TaskTime.attempt_id==a.id,TaskTime.task_id==data.task_id)):
+        db.add(TaskTime(attempt_id=a.id,task_id=data.task_id,elapsed_ms=0,first_opened_at=timestamp))
+    db.commit();return snapshot(db,a,stage,timestamp)
+
+@app.get('/api/stages/{sid}/task-times')
+def task_times(sid:str,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
+    stage=get_or_404(db,Stage,sid);reg=registration(db,u,stage.olympiad_id)
+    attempt=db.scalar(select(Attempt).where(Attempt.registration_id==reg.id,Attempt.stage_id==sid))
+    result=snapshot(db,attempt,stage) if attempt else {'timings':[],'server_time':now()}
+    for row in result['timings']:row['task_title']=db.get(Task,row['task_id']).title
+    return result
 
 @app.get('/api/stages/{sid}/academy-ending')
 def academy_ending(sid:str,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
@@ -191,7 +221,10 @@ def save_draft(tid:str,data:DraftInput,request:Request,u:User=Depends(current_us
 
 @app.post('/api/tasks/{tid}/submissions',status_code=202)
 def submit(tid:str,data:CodeInput,request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
-    t=get_or_404(db,Task,tid); active_attempt(db,u,db.get(Stage,t.stage_id),request); limit('submit:'+u.id,20,60)
+    t=get_or_404(db,Task,tid); a=active_attempt(db,u,db.get(Stage,t.stage_id),request); limit('submit:'+u.id,20,60)
+    a=db.scalar(select(Attempt).where(Attempt.id==a.id).with_for_update().execution_options(populate_existing=True))
+    if a.finished or now()>=a.deadline or a.session_hash!=exam_session(request):raise HTTPException(409,'Сессия этапа изменилась')
+    if t.kind!='code':raise HTTPException(422,'Для контрольного вопроса используйте отправку ответа')
     s=Submission(user_id=u.id,olympiad_id=t.olympiad_id,stage_id=t.stage_id,task_id=tid,code=data.code,mode=data.mode); db.add(s); db.commit()
     from .jobs import judge_submission
     try: judge_submission.delay(s.id)
@@ -199,12 +232,40 @@ def submit(tid:str,data:CodeInput,request:Request,u:User=Depends(current_user),d
         s.status='System Error'; db.commit(); raise HTTPException(503,'Очередь недоступна')
     return serialize(s,('code',))
 
+@app.post('/api/tasks/{tid}/answers',status_code=201)
+def answer(tid:str,data:AnswerInput,request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
+    t=get_or_404(db,Task,tid);a=active_attempt(db,u,db.get(Stage,t.stage_id),request);limit('submit:'+u.id,20,60)
+    a=db.scalar(select(Attempt).where(Attempt.id==a.id).with_for_update().execution_options(populate_existing=True))
+    if a.finished or now()>=a.deadline or a.session_hash!=exam_session(request):raise HTTPException(409,'Сессия этапа изменилась')
+    if t.kind=='code':raise HTTPException(422,'Для задачи на Python отправьте программу')
+    if db.scalar(select(Submission.id).where(Submission.user_id==u.id,Submission.task_id==tid,Submission.mode=='submit').limit(1)):raise HTTPException(409,'Ответ уже отправлен; повторная отправка недоступна')
+    if t.kind=='choice':
+        if data.answer or data.option_index is None or data.option_index>=len(t.answer_options):raise HTTPException(422,'Выберите один вариант ответа')
+        correct=data.option_index==t.correct_option
+        s=Submission(user_id=u.id,olympiad_id=t.olympiad_id,stage_id=t.stage_id,task_id=tid,code=str(data.option_index),status='Accepted' if correct else 'Wrong Answer',score=t.points if correct else 0)
+    else:
+        if not data.answer.strip() or data.option_index is not None:raise HTTPException(422,'Введите развёрнутый ответ')
+        s=Submission(user_id=u.id,olympiad_id=t.olympiad_id,stage_id=t.stage_id,task_id=tid,code=data.answer,status='Pending Review')
+    db.add(s);db.flush();db.add(SubmissionResult(submission_id=s.id,detail={'message':'Ответ сохранён. Ожидает оценки преподавателя.' if t.kind=='text' else 'Ответ проверен.'}));db.commit()
+    return serialize(s)
+
+@app.post('/api/admin/submissions/{id}/review')
+def review_answer(id:str,data:ReviewInput,u:User=Depends(admin),db:DBSession=Depends(get_db)):
+    s=get_or_404(db,Submission,id);t=db.get(Task,s.task_id)
+    if t.kind!='text' or s.mode!='submit':raise HTTPException(422,'Ручная оценка доступна только для развёрнутого ответа')
+    if data.score>t.points:raise HTTPException(422,'Оценка превышает максимум за задание')
+    s.score=data.score;s.status='Accepted' if data.score==t.points else 'Reviewed';s.review_feedback=data.feedback;s.reviewed_by=u.id;s.reviewed_at=now()
+    result=db.scalar(select(SubmissionResult).where(SubmissionResult.submission_id==id))
+    if result:result.detail={'feedback':data.feedback}
+    audit(db,u,'REVIEW_ANSWER',id);db.add(Notification(user_id=s.user_id,message=f'Ответ «{t.title}» оценён: {data.score} / {t.points}. {data.feedback}'));db.commit();return serialize(s)
+
 @app.get('/api/submissions/{id}')
 def submission(id:str,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
     s=get_or_404(db,Submission,id)
     if s.user_id!=u.id and u.role!='admin': raise HTTPException(403,'Нет доступа')
     r=db.scalar(select(SubmissionResult).where(SubmissionResult.submission_id==id))
-    return serialize(s)|{'result':r.detail if r else None}
+    t=db.get(Task,s.task_id)
+    return serialize(s)|{'result':r.detail if r else None,'task':serialize(t) if u.role=='admin' else {'title':t.title,'kind':t.kind,'points':t.points}}
 
 @app.post('/api/anti-cheat/{sid}')
 def event(sid:str,data:EventInput,request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
@@ -272,10 +333,10 @@ def edit_participant(rid:str,data:ParticipantInput,u:User=Depends(admin),db:DBSe
 
 @app.post('/api/admin/participants/{rid}/reset-session/{sid}')
 def reset_session(rid:str,sid:str,u:User=Depends(admin),db:DBSession=Depends(get_db)):
-    a=db.scalar(select(Attempt).where(Attempt.registration_id==rid,Attempt.stage_id==sid))
+    a=db.scalar(select(Attempt).where(Attempt.registration_id==rid,Attempt.stage_id==sid).with_for_update())
     if not a: raise HTTPException(404,'Попытка не найдена')
     # Admin recovery permits the participant's next start to bind a new session, preserving deadline.
-    a.session_hash=''; audit(db,u,'RESET_SESSION',a.id); db.commit(); return {'message':'Сессия освобождена'}
+    checkpoint(db,a,db.get(Stage,sid)); a.active_task_id=None; a.session_hash=''; audit(db,u,'RESET_SESSION',a.id); db.commit(); return {'message':'Сессия освобождена'}
 
 @app.get('/api/admin/olympiads/{oid}/export')
 def export(oid:str,format:str='csv',u:User=Depends(admin),db:DBSession=Depends(get_db)):
@@ -332,7 +393,9 @@ def install_academy(data:AcademyInput,u:User=Depends(admin),db:DBSession=Depends
 
 @app.post('/api/admin/stages/{sid}/tasks',status_code=201)
 def create_task(sid:str,data:TaskInput,u:User=Depends(admin),db:DBSession=Depends(get_db)):
-    s=get_or_404(db,Stage,sid); t=Task(stage_id=sid,olympiad_id=s.olympiad_id,**data.model_dump(exclude={'tests'})); db.add(t); db.flush()
+    s=get_or_404(db,Stage,sid)
+    if db.scalar(select(func.count()).select_from(Attempt).where(Attempt.stage_id==sid)): raise HTTPException(409,'Нельзя добавлять задания после начала этапа участниками')
+    t=Task(stage_id=sid,olympiad_id=s.olympiad_id,**data.model_dump(exclude={'tests'})); db.add(t); db.flush()
     for c in data.tests: db.add(TestCase(task_id=t.id,**c.model_dump()))
     audit(db,u,'CREATE_TASK',t.id); db.commit(); return serialize(t)
 
@@ -347,7 +410,23 @@ def edit_task(tid:str,data:TaskInput,u:User=Depends(admin),db:DBSession=Depends(
 
 @app.get('/api/admin/olympiads/{oid}/submissions')
 def admin_submissions(oid:str,u:User=Depends(admin),db:DBSession=Depends(get_db)):
-    return [serialize(s,('code',)) for s in db.scalars(select(Submission).where(Submission.olympiad_id==oid).order_by(Submission.created_at.desc()).limit(500))]
+    rows=[]
+    for s in db.scalars(select(Submission).where(Submission.olympiad_id==oid).order_by(Submission.created_at.desc()).limit(500)):
+        task=db.get(Task,s.task_id); user=db.get(User,s.user_id)
+        rows.append(serialize(s,('code',))|{'task_title':task.title,'kind':task.kind,'max_points':task.points,'participant_name':user.last_name+' '+user.first_name})
+    return rows
+
+@app.get('/api/admin/olympiads/{oid}/task-times')
+def admin_task_times(oid:str,u:User=Depends(admin),db:DBSession=Depends(get_db)):
+    get_or_404(db,Olympiad,oid)
+    timestamp=now(); rows=[]
+    for attempt in db.scalars(select(Attempt).join(Registration,Registration.id==Attempt.registration_id).where(Registration.olympiad_id==oid)):
+        r=db.get(Registration,attempt.registration_id); user=db.get(User,r.user_id); stage=db.get(Stage,attempt.stage_id)
+        times={t['task_id']:t for t in snapshot(db,attempt,stage,timestamp)['timings']}
+        for task in ordered_tasks(db.scalars(select(Task).where(Task.stage_id==stage.id))):
+            rows.append({'participant_id':r.id,'participant_name':user.last_name+' '+user.first_name,'email':user.email,'stage_title':stage.title,'task_title':task.title,'task_id':task.id,'kind':task.kind,**times.get(task.id,{'elapsed_ms':0,'active_until':None})})
+    return {'timings':rows,'server_time':timestamp}
+
 
 @app.get('/api/admin/olympiads/{oid}/events')
 def admin_events(oid:str,u:User=Depends(admin),db:DBSession=Depends(get_db)):

@@ -29,3 +29,5 @@ export async function api(path:string, options:RequestInit={}) {
 export const date=(value:string)=>new Date(value).toLocaleString('ru-RU',{timeZone:'Asia/Yekaterinburg',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
 export const statusLabel:Record<string,string>={draft:'Черновик',scheduled:'Запланирована',active:'Олимпиада открыта',finished:'Завершена'};
 export const json=(data:unknown)=>JSON.stringify(data);
+
+export const answerStatus=(s:string)=>({'Pending Review':'Ожидает оценки преподавателя',Reviewed:'Проверено преподавателем',Accepted:'Принято','Wrong Answer':'Неверный ответ',Queued:'В очереди',Running:'Проверяется'} as Record<string,string>)[s]||s;

@@ -24,7 +24,7 @@ def main():
                 for title,statement,inp,out,pi,po,hi,ho in tasks:
                     t=Task(olympiad_id=o.id,stage_id=s.id,title=title,statement=statement,input_description=inp,output_description=out,constraints='|aᵢ| ≤ 10⁶; количество чисел ≤ 10⁴'); db.add(t); db.flush()
                     db.add_all([TestCase(task_id=t.id,input=pi,expected=po,public=True),TestCase(task_id=t.id,input=hi,expected=ho,public=False)])
-            for user,level in ([(users[1],9)] if typ=='SCHOOL' else [(users[2],1),(users[3],2)]):
+            for user,level in ([(users[1],10)] if typ=='SCHOOL' else [(users[2],1),(users[3],2)]):
                 db.add(Registration(user_id=user.id,olympiad_id=o.id,school_class=level if typ=='SCHOOL' else None,course=level if typ=='SPO' else None))
         db.commit(); print('Development seed создан')
 if __name__=='__main__': main()

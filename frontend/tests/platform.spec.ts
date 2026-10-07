@@ -13,7 +13,7 @@ test('Главная и отдельные регистрационные фор
  await page.goto('/');await expect(page.getByRole('heading',{name:'Выбери свою олимпиаду'})).toBeVisible();
  const cards=page.locator('article');await expect(cards.filter({has:page.getByRole('heading',{name:'Олимпиада для школьников',exact:true})})).toHaveCount(1);await expect(cards.filter({has:page.getByRole('heading',{name:'Олимпиада для студентов СПО',exact:true})})).toHaveCount(1);
  await cards.filter({has:page.getByRole('heading',{name:'Олимпиада для школьников',exact:true})}).getByRole('link',{name:/Зарегистрироваться/}).click();
- await expect(page.getByRole('combobox',{name:'Класс',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'Курс',exact:true})).toHaveCount(0);await expect(page.getByText(/наставник/i)).toHaveCount(0);
+ await expect(page.getByRole('combobox',{name:'Класс',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'Класс',exact:true}).locator('option')).toHaveText(['10 класс','11 класс']);await expect(page.getByRole('combobox',{name:'Курс',exact:true})).toHaveCount(0);await expect(page.getByText(/наставник/i)).toHaveCount(0);
  await page.goto('/');await page.locator('article').filter({has:page.getByRole('heading',{name:'Олимпиада для студентов СПО',exact:true})}).getByRole('link',{name:/Зарегистрироваться/}).click();
  await expect(page.getByRole('combobox',{name:'Курс',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'Класс',exact:true})).toHaveCount(0);await expect(page.getByText(/наставник/i)).toHaveCount(0);
 });
@@ -98,7 +98,7 @@ test('Создание всего приключения из панели ад�
  await page.getByRole('button',{name:'Создать приключение',exact:true}).click();
  await expect(page.getByRole('button',{name:'Редактировать',exact:true})).toHaveCount(8);
  await expect(page.getByRole('heading',{name:'Код от двери',exact:true})).toBeVisible();
- await expect(page.getByRole('heading',{name:'Последний протокол',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Диагностика панели',exact:true})).toBeVisible();await page.getByRole('combobox',{name:'Этап',exact:true}).selectOption({index:1});await expect(page.getByRole('button',{name:'Редактировать',exact:true})).toHaveCount(4);await expect(page.getByRole('heading',{name:'Последний протокол',exact:true})).toBeVisible();
  await expect(page.locator('.notice')).toContainText(/Приключение создано|Эта олимпиада уже создана/);
  await page.getByRole('button',{name:'Создать приключение',exact:true}).click();
  await expect(page.locator('.notice')).toContainText('Эта олимпиада уже создана');
@@ -118,10 +118,10 @@ test('Приключение: решение последней главы, пр
  try{
   const stage=await admin.post('/api/admin/olympiads/'+oid+'/stages',{headers:csrf,data:{title:'Восемь глав Академии',kind:'main',starts_at:new Date(now-60000).toISOString(),ends_at:new Date(now+86400000).toISOString(),duration_minutes:180}});expect(stage.status()).toBe(201);const sid=(await stage.json()).id;
   const pack=await(await admin.get('/api/admin/task-packs/academy')).json();
-  for(const chapter of pack.tasks){const {chapter:number,stars,topic,...fields}=chapter;const response=await admin.post('/api/admin/stages/'+sid+'/tasks',{headers:csrf,data:{...fields,academy_chapter:number}});expect(response.status()).toBe(201);}
+  for(const chapter of pack.tasks.filter((t:any)=>t.kind==='code')){const {chapter:number,stars,topic,key,stage_kind,...fields}=chapter;fields.position=number;const response=await admin.post('/api/admin/stages/'+sid+'/tasks',{headers:csrf,data:{...fields,academy_chapter:number}});expect(response.status()).toBe(201);}
   await login(page,'school@example.org');
   const profile=await(await page.request.get('/api/profile')).json();
-  const joined=await page.request.post('/api/registrations/'+oid,{headers:{Origin:'http://localhost:8080','X-CSRF-Token':profile.csrf},data:{school_class:9,consent_data:true,consent_rules:true}});expect(joined.status()).toBe(201);
+  const joined=await page.request.post('/api/registrations/'+oid,{headers:{Origin:'http://localhost:8080','X-CSRF-Token':profile.csrf},data:{school_class:10,consent_data:true,consent_rules:true}});expect(joined.status()).toBe(201);
   await page.goto('/exam/'+sid);await expect(page.locator('.monaco-editor')).toBeVisible({timeout:20000});
   await expect(page.getByText('Пройдено 0 из 8 глав',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Открыть финал приключения'})).toHaveCount(0);

@@ -10,7 +10,7 @@ from .schemas import TaskInput
 PACK = json.loads((Path(__file__).parent / 'content' / 'academy.json').read_text())
 
 def task_input(chapter):
-    fields = {k: v for k, v in chapter.items() if k not in {'chapter', 'stars', 'topic'}}
+    fields = {k: v for k, v in chapter.items() if k not in {'chapter', 'stars', 'topic', 'key', 'stage_kind'}}
     return TaskInput(**fields, academy_chapter=chapter['chapter'])
 
 def academy_id(audience):
@@ -24,30 +24,29 @@ def create_academy(db, audience):
         return existing, False
     timestamp = now()
     event = Olympiad(id=oid, type=audience, title=PACK['title'], description=PACK['intro'],
-        rules='## Миссия\nВосстановите работу Академии, решив восемь задач на Python 3. '
-              'Главы расположены по порядку сюжета, но решения можно отправлять в любом порядке. '
-              'Все задания оцениваются в 100 баллов; максимум — 800. '
-              'Баллы начисляются по доле пройденных проверок. Решайте самостоятельно. '
-              'Время этапа контролируется сервером. Финал откроется после принятого официального решения последней задачи.',
+        rules='## Миссия\nОтборочный этап: четыре задачи на Python и четыре контрольных вопроса (600 баллов). Основной этап продолжает сюжет: четыре задачи на Python (400 баллов). Максимум — 1000 баллов. Код оценивается по доле пройденных тестов; вопросы с выбором ответа — автоматически, развёрнутые ответы — преподавателем. На контрольный вопрос можно отправить один окончательный ответ. Задания можно решать в любом порядке внутри этапа. Финал откроется после принятого официального решения «Последнего протокола». Решайте самостоятельно.',
         status='draft', registration_start=timestamp,
         registration_end=timestamp + timedelta(days=7), ranking_visible=False)
     db.add(event)
     db.flush()
-    stage = Stage(olympiad_id=oid, title='Сбой в Академии Алгоритмов · восемь глав', kind='main',
-        starts_at=timestamp + timedelta(days=8), ends_at=timestamp + timedelta(days=9), duration_minutes=180)
-    db.add(stage)
-    db.flush()
-    for chapter in PACK['tasks']:
-        data = task_input(chapter)
-        task = Task(olympiad_id=oid, stage_id=stage.id, **data.model_dump(exclude={'tests'}))
-        db.add(task)
+    for index, definition in enumerate(PACK['stages']):
+        stage = Stage(olympiad_id=oid, **definition,
+            starts_at=timestamp + timedelta(days=8 + index * 2),
+            ends_at=timestamp + timedelta(days=9 + index * 2))
+        db.add(stage)
         db.flush()
-        for case in data.tests:
-            db.add(TestCase(task_id=task.id, **case.model_dump()))
+        for chapter in PACK['tasks']:
+            if chapter['stage_kind'] != stage.kind: continue
+            data = task_input(chapter)
+            task = Task(olympiad_id=oid, stage_id=stage.id, **data.model_dump(exclude={'tests'}))
+            db.add(task)
+            db.flush()
+            for case in data.tests:
+                db.add(TestCase(task_id=task.id, **case.model_dump()))
     return event, True
 
 def ordered_tasks(rows):
-    return sorted(rows, key=lambda task: task.academy_chapter or 99)
+    return sorted(rows, key=lambda task: (task.position or task.academy_chapter or 999, task.title))
 
 def completed_chapters(db, user_id, stage_id):
     return sorted(set(db.scalars(select(Task.academy_chapter).join(Submission, Submission.task_id==Task.id)

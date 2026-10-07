@@ -35,7 +35,7 @@ class Olympiad(Base):
     status: Mapped[str] = mapped_column(default='draft')
     registration_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     registration_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    allowed_classes: Mapped[list] = mapped_column(JSON, default=lambda: [7,8,9,10,11])
+    allowed_classes: Mapped[list] = mapped_column(JSON, default=lambda: [10,11])
     ranking_visible: Mapped[bool] = mapped_column(default=False)
 
 class Registration(Base):
@@ -59,6 +59,7 @@ class Stage(Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     duration_minutes: Mapped[int] = mapped_column(Integer, default=120)
+    story_intro: Mapped[str] = mapped_column(Text, default='')
 
 class Attempt(Base):
     __tablename__ = 'participants'
@@ -70,6 +71,8 @@ class Attempt(Base):
     deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     session_hash: Mapped[str] = mapped_column(String(64))
     finished: Mapped[bool] = mapped_column(default=False)
+    active_task_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    task_last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 class Task(Base):
     __tablename__ = 'tasks'
@@ -86,6 +89,11 @@ class Task(Base):
     memory_limit: Mapped[int] = mapped_column(default=128)
     points: Mapped[int] = mapped_column(default=100)
     academy_chapter: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    kind: Mapped[str] = mapped_column(String(20), default='code')
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    answer_options: Mapped[list] = mapped_column(JSON, default=list)
+    correct_option: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rubric: Mapped[str] = mapped_column(Text, default='')
 
 class TestCase(Base):
     __tablename__ = 'test_cases'
@@ -107,6 +115,18 @@ class Submission(Base):
     status: Mapped[str] = mapped_column(default='Queued')
     score: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    review_feedback: Mapped[str] = mapped_column(Text, default='')
+    reviewed_by: Mapped[str | None] = mapped_column(ForeignKey('users.id'), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+class TaskTime(Base):
+    __tablename__ = 'task_times'
+    __table_args__ = (UniqueConstraint('attempt_id', 'task_id'),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    attempt_id: Mapped[str] = mapped_column(ForeignKey('participants.id'))
+    task_id: Mapped[str] = mapped_column(ForeignKey('tasks.id'))
+    elapsed_ms: Mapped[int] = mapped_column(Integer, default=0)
+    first_opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 class SubmissionResult(Base):
     __tablename__ = 'submission_results'

@@ -11,7 +11,7 @@ from academy_reference import SOLUTIONS
 URL = 'http://localhost:8080'
 PASSWORD = 'DevOnly!Python2026'
 
-@pytest.mark.parametrize('chapter', PACK['tasks'], ids=lambda t: 'chapter-'+str(t['chapter']))
+@pytest.mark.parametrize('chapter', [t for t in PACK['tasks'] if t['kind']=='code'], ids=lambda t: 'chapter-'+str(t['chapter']))
 def test_authored_cases(chapter):
     data = task_input(chapter)
     assert len(data.tests) >= 6 and any(c.public for c in data.tests)
@@ -48,17 +48,19 @@ def test_atomic_repeatable_import(academy_clients):
         repeated = admin.post('/api/admin/adventures/academy',json={'type':audience}).json()
         assert not repeated['created'] and repeated['olympiad']['id'] == event['id']
         stage = admin.get('/api/admin/olympiads/'+event['id']+'/stages').json()
-        assert len(stage) == 1 and stage[0]['duration_minutes'] == 180
-        tasks = admin.get('/api/admin/stages/'+stage[0]['id']+'/tasks').json()
-        assert [t['academy_chapter'] for t in tasks] == list(range(1,9))
-        assert sum(t['points'] for t in tasks) == 800
+        assert len(stage) == 2 and [s['kind'] for s in stage]==['qualifying','main']
+        assert [s['duration_minutes'] for s in stage]==[120,180]
+        tasks = [t for s in stage for t in admin.get('/api/admin/stages/'+s['id']+'/tasks').json()]
+        assert [t['academy_chapter'] for t in tasks if t['kind']=='code'] == list(range(1,9))
+        assert len(tasks)==12 and sum(t['kind']=='choice' for t in tasks)==2 and sum(t['kind']=='text' for t in tasks)==2
+        assert sum(t['points'] for t in tasks) == 1000
         public = admin.get('/api/olympiads').json()
         assert event['id'] not in {o['id'] for o in public}
     for oid, stages in old_counts.items():
         for sid, count in stages:
             assert len(admin.get('/api/admin/stages/'+sid+'/tasks').json()) == count
     pack = admin.get('/api/admin/task-packs/academy').json()
-    assert 'finale' not in pack and len(pack['tasks']) == 8
+    assert 'finale' not in pack and len(pack['tasks']) == 12
 
 
 def checked(client, submission_id):
@@ -83,11 +85,11 @@ def test_eight_chapters_real_judge_and_protected_ending(academy_clients):
         sid=response.json()['id']
         # Deliberately import out of order: the participant must still see chapter order.
         tasks = {}
-        for chapter in reversed(PACK['tasks']):
-            response=admin.post('/api/admin/stages/'+sid+'/tasks',json=task_input(chapter).model_dump())
+        for chapter in reversed([t for t in PACK['tasks'] if t['kind']=='code']):
+            response=admin.post('/api/admin/stages/'+sid+'/tasks',json=task_input(chapter).model_dump()|{'position':chapter['chapter']})
             assert response.status_code==201,response.text
             tasks[chapter['chapter']]=response.json()['id']
-        response=student.post('/api/registrations/'+oid,json={'school_class':9,'consent_data':True,'consent_rules':True});assert response.status_code==201,response.text
+        response=student.post('/api/registrations/'+oid,json={'school_class':10,'consent_data':True,'consent_rules':True});assert response.status_code==201,response.text
         assert student.post('/api/stages/'+sid+'/start').status_code==200
         assert student.get('/api/stages/'+sid+'/academy-ending').status_code==403
         assert academy_clients['spo1'].get('/api/stages/'+sid+'/academy-progress').status_code==403

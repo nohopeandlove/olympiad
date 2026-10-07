@@ -1,0 +1,9 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {api} from './api';
+import {duration,elapsed} from './useTaskTiming';
+export default function AdminTaskTimes({olympiadId}:{olympiadId:string}){
+ const [data,setData]=useState<any>(null),[clock,setClock]=useState(Date.now()),[error,setError]=useState(''),[q,setQ]=useState('');
+ useEffect(()=>{let live=true;const load=()=>api('/admin/olympiads/'+olympiadId+'/task-times').then(r=>{if(live){setData({...r,received:Date.now()});setError('');}}).catch(e=>{if(live)setError(e.message);});load();const refresh=setInterval(load,15000),tick=setInterval(()=>setClock(Date.now()),1000);return()=>{live=false;clearInterval(refresh);clearInterval(tick);};},[olympiadId]);
+ return <>{error&&<p className="error">{error}</p>}<p className="muted">Время, проведённое с открытым заданием в активной вкладке. При переключении заданий или уходе со вкладки отсчёт приостанавливается. Обновление с сервера каждые 15 секунд.</p><label>Поиск участника<input value={q} onChange={e=>setQ(e.target.value)}/></label><div className="card tablewrap spaced"><table><thead><tr><th>Участник</th><th>Этап</th><th>Задание</th><th>Время</th><th>Состояние</th></tr></thead><tbody>{data?.timings.filter((r:any)=>(r.participant_name+' '+r.email).toLowerCase().includes(q.toLowerCase())).map((r:any)=><tr key={r.participant_id+':'+r.task_id}><td>{r.participant_name}<br/><span className="small muted">{r.email}</span></td><td>{r.stage_title}</td><td>{r.task_title}</td><td>{duration(elapsed(r,data.server_time,data.received,clock))}</td><td>{r.active_until&&clock-data.received<new Date(r.active_until).getTime()-new Date(data.server_time).getTime()?'Открыто':'Пауза'}</td></tr>)}</tbody></table>{data&&!data.timings.length&&<p>Участники ещё не начали этапы.</p>}</div></>;
+}

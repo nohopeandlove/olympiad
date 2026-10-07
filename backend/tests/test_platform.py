@@ -127,7 +127,7 @@ print('ISOLATED')
 
 def test_registration_and_email(clients,events):
     unique=uuid.uuid4().hex[:10]
-    for typ,level in [('SCHOOL',9),('SPO',1),('SPO',2)]:
+    for typ,level in [('SCHOOL',10),('SPO',1),('SPO',2)]:
         body={'olympiad_id':events[typ]['o']['id'],'email':f'{unique}-{typ}-{level}@example.org','password':PASSWORD,'confirm_password':PASSWORD,'last_name':'Тестов','first_name':'Участник','birth_date':'2008-01-01','phone':'+79001234567','region':'Регион','city':'Город','organization':'Учебная организация','consent_data':True,'consent_rules':True}
         body['school_class' if typ=='SCHOOL' else 'course']=level
         c=httpx.Client(base_url=URL,headers={'Origin':URL,'X-Exam-Session':uuid.uuid4().hex},trust_env=False)
@@ -143,7 +143,7 @@ def test_registration_and_email(clients,events):
         c.close()
 
 def test_invalid_registration(clients,events):
-    body={'school_class':9,'course':1,'consent_data':True,'consent_rules':True}
+    body={'school_class':10,'course':1,'consent_data':True,'consent_rules':True}
     assert clients['admin'].post('/api/registrations/'+events['SCHOOL']['o']['id'],json=body).status_code==422
     assert clients['admin'].post('/api/registrations/'+events['SPO']['o']['id'],json={**body,'course':3,'school_class':None}).status_code==422
 
@@ -159,7 +159,7 @@ def test_expired_deadline_and_finish(clients):
     c=clients['admin'];now=datetime.now(timezone.utc)
     o={'type':'SCHOOL','title':'Deadline test','status':'active','registration_start':(now-timedelta(days=1)).isoformat(),'registration_end':(now+timedelta(days=1)).isoformat()}
     r=c.post('/api/admin/olympiads',json=o);assert r.status_code==201,r.text;oid=r.json()['id']
-    assert c.post('/api/registrations/'+oid,json={'school_class':9,'consent_data':True,'consent_rules':True}).status_code==201
+    assert c.post('/api/registrations/'+oid,json={'school_class':10,'consent_data':True,'consent_rules':True}).status_code==201
     stage={'title':'Короткий этап','kind':'qualifying','starts_at':(now-timedelta(minutes=1)).isoformat(),'ends_at':(datetime.now(timezone.utc)+timedelta(seconds=2)).isoformat(),'duration_minutes':1}
     sid=c.post(f'/api/admin/olympiads/{oid}/stages',json=stage).json()['id']
     tid=c.post(f'/api/admin/stages/{sid}/tasks',json={'title':'Test','statement':'Test','tests':[{'input':'','expected':'1','public':False}]}).json()['id']
@@ -210,7 +210,7 @@ def test_admin_to_new_participant_complete_flow(clients,typ,code):
         task={'title':'Арифметика','statement':'Вычислите результат','points':80,'tests':[{'input':'2 3\n','expected':'5\n' if typ=='SCHOOL' else '6\n','public':True},{'input':'-2 4\n','expected':'2\n' if typ=='SCHOOL' else '-8\n','public':False}]}
         r=admin.post(f'/api/admin/stages/{sid}/tasks',json=task);assert r.status_code==201,r.text;tid=r.json()['id']
         profile={'olympiad_id':oid,'email':suffix+'@example.org','password':PASSWORD,'confirm_password':PASSWORD,'last_name':'Новый','first_name':'Участник','birth_date':'2008-01-01','phone':'+79001234567','region':'Р','city':'Г','organization':'О','consent_data':True,'consent_rules':True}
-        profile['school_class' if typ=='SCHOOL' else 'course']=9 if typ=='SCHOOL' else 2
+        profile['school_class' if typ=='SCHOOL' else 'course']=10 if typ=='SCHOOL' else 2
         with httpx.Client(base_url=URL,headers={'Origin':URL,'X-Exam-Session':uuid.uuid4().hex},trust_env=False) as c:
             r=c.post('/api/auth/register',json=profile);assert r.status_code==201,r.text
             with httpx.Client(base_url='http://localhost:8025',trust_env=False) as mail:
@@ -234,4 +234,4 @@ def test_admin_to_new_participant_complete_flow(clients,typ,code):
 
 def test_cannot_self_change_educational_category(clients,events):
     assert clients['school'].post('/api/registrations/'+events['SPO']['o']['id'],json={'course':1,'consent_data':True,'consent_rules':True}).status_code==403
-    assert clients['spo1'].post('/api/registrations/'+events['SCHOOL']['o']['id'],json={'school_class':9,'consent_data':True,'consent_rules':True}).status_code==403
+    assert clients['spo1'].post('/api/registrations/'+events['SCHOOL']['o']['id'],json={'school_class':10,'consent_data':True,'consent_rules':True}).status_code==403

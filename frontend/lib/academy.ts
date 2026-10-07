@@ -8,4 +8,4 @@ export const academyChapters = [
  {chapter:7,title:'Резервное питание',stars:4,topic:'Динамическое программирование',location:'Серверная',description:'Подбери батареи и восстанови питание без перегрузки.'},
  {chapter:8,title:'Последний протокол',stars:5,topic:'Графы и BFS',location:'Центральное ядро',description:'Пройди сеть телепортов и останови уничтожение системы.'},
 ];
-export type AcademyTemplate = {chapter:number;stars:number;topic:string;title:string;statement:string;input_description:string;output_description:string;constraints:string;difficulty:string;points:number;time_limit:number;memory_limit:number;tests:{input:string;expected:string;public:boolean}[]};
+export type AcademyTemplate = {key:string;stage_kind:'qualifying'|'main';kind:'code'|'choice'|'text';position:number;answer_options:string[];correct_option:number|null;rubric:string;chapter:number|null;stars:number;topic:string;title:string;statement:string;input_description:string;output_description:string;constraints:string;difficulty:string;points:number;time_limit:number;memory_limit:number;tests:{input:string;expected:string;public:boolean}[]};
