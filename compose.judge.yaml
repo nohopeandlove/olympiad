@@ -1,0 +1,43 @@
+# A separate judge VPS, never the app/database VPS.
+# docker compose --env-file .env.judge -f compose.judge.yaml up --build -d
+services:
+  sandbox-image:
+    image: olympiad-sandbox:local
+    build:
+      context: ./judge
+      dockerfile: Dockerfile.sandbox
+    entrypoint: ["python3", "-c", "print('Sandbox image prepared')"]
+    network_mode: none
+  judge:
+    build: ./judge
+    restart: unless-stopped
+    environment:
+      JUDGE_TOKEN: ${JUDGE_TOKEN:?Set same random token as on app VPS}
+      SANDBOX_IMAGE: olympiad-sandbox:local
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    networks: [judging]
+    depends_on:
+      sandbox-image: {condition: service_completed_successfully}
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      NO_PROXY: judge,localhost,127.0.0.1
+      JUDGE_DOMAIN: ${JUDGE_DOMAIN:?Set registered judge subdomain}
+      APP_SERVER_IP: ${APP_SERVER_IP:?Set public IPv4 of app VPS}
+      ACME_EMAIL: ${ACME_EMAIL:?Set certificate contact email}
+    volumes:
+      - ./infra/Caddyfile.judge:/etc/caddy/Caddyfile:ro
+      - judge_caddy_data:/data
+      - judge_caddy_config:/config
+    networks: [edge, judging]
+    depends_on:
+      judge: {condition: service_started}
+networks:
+  edge:
+  judging:
+    internal: true
+volumes:
+  judge_caddy_data:
+  judge_caddy_config:

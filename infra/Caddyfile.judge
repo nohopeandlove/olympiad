@@ -1,0 +1,8 @@
+{
+    email {$ACME_EMAIL}
+}
+{$JUDGE_DOMAIN} {
+    @outside not remote_ip {$APP_SERVER_IP}/32
+    respond @outside "Forbidden" 403
+    reverse_proxy judge:9000
+}

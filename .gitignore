@@ -11,3 +11,10 @@ playwright-report/
 test-results/
 
 frontend/public/monaco/
+
+# Deployment secrets; examples remain tracked.
+.env.*
+!.env.example
+!.env.production.example
+!.env.judge.example
+backups/
