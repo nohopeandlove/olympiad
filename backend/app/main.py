@@ -66,14 +66,33 @@ def public_stages(db, oid):
         result.append(serialize(stage)|{'chapters':chapters})
     return result
 
+def browsing_user(request,db):
+    session=db.get(Session,digest(request.cookies.get('session',''))) if request.cookies.get('session') else None
+    if not session or session.expires_at<=now():return None
+    user=db.get(User,session.user_id)
+    if user and user.blocked:raise HTTPException(403,'Аккаунт заблокирован')
+    return user
+
+def participant_category(db,user):
+    if not user or user.role=='admin':return None
+    return db.scalar(select(Olympiad.type).join(Registration,Registration.olympiad_id==Olympiad.id).where(Registration.user_id==user.id).order_by(Registration.consent_at,Registration.id).limit(1))
+
+def visible_event(db,event,user):
+    if user and user.role=='admin':return
+    if event.id not in {academy_id('SCHOOL'),academy_id('SPO')} or event.status=='draft':raise HTTPException(404,'Олимпиада не найдена')
+    category=participant_category(db,user)
+    if category and event.type!=category:raise HTTPException(403,'Эта категория участия вам недоступна')
+
 @app.get('/api/olympiads')
-def olympiads(db: DBSession=Depends(get_db)):
-    return [serialize(o) | {'stages':public_stages(db,o.id)} for o in db.scalars(select(Olympiad).where(Olympiad.status!='draft').order_by(Olympiad.type,Olympiad.title))]
+def olympiads(request:Request,db: DBSession=Depends(get_db)):
+    user=browsing_user(request,db);category=participant_category(db,user)
+    query=select(Olympiad).where(Olympiad.id.in_([academy_id('SCHOOL'),academy_id('SPO')]),Olympiad.status!='draft').order_by(Olympiad.type)
+    if category:query=query.where(Olympiad.type==category)
+    return [serialize(o)|{'stages':public_stages(db,o.id)} for o in db.scalars(query)]
 
 @app.get('/api/olympiads/{oid}')
-def olympiad(oid:str,db:DBSession=Depends(get_db)):
-    o=get_or_404(db,Olympiad,oid)
-    if o.status=='draft': raise HTTPException(404,'Не найдено')
+def olympiad(oid:str,request:Request,db:DBSession=Depends(get_db)):
+    o=get_or_404(db,Olympiad,oid);visible_event(db,o,browsing_user(request,db))
     return serialize(o)|{'stages':public_stages(db,oid)}
 
 @app.post('/api/auth/register',status_code=201)
@@ -128,9 +147,13 @@ def logout(request:Request,response:Response,u:User=Depends(current_user),db:DBS
 @app.get('/api/profile')
 def profile(request:Request,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
     regs=[]
-    for r in db.scalars(select(Registration).where(Registration.user_id==u.id)):
+    category=participant_category(db,u)
+    query=select(Registration).where(Registration.user_id==u.id)
+    query=query.where(Registration.olympiad_id.in_([academy_id('SCHOOL'),academy_id('SPO')]))
+    if category:query=query.where(Registration.olympiad_id==academy_id(category))
+    for r in db.scalars(query):
         regs.append(serialize(r)|{'olympiad':serialize(db.get(Olympiad,r.olympiad_id)),'stages':[serialize(s)|{'academy_ending_unlocked':8 in completed_chapters(db,u.id,s.id)} for s in db.scalars(select(Stage).where(Stage.olympiad_id==r.olympiad_id))],'attempts':[serialize(a,('session_hash',)) for a in db.scalars(select(Attempt).where(Attempt.registration_id==r.id))]})
-    return {'user':user_data(u),'csrf':request.state.session.csrf,'registrations':regs,'notifications':[serialize(n) for n in db.scalars(select(Notification).where(Notification.user_id==u.id))],'submissions':[serialize(s,('code',)) for s in db.scalars(select(Submission).where(Submission.user_id==u.id).order_by(Submission.created_at.desc()).limit(100))],'server_time':now()}
+    return {'user':user_data(u),'category':category,'csrf':request.state.session.csrf,'registrations':regs,'notifications':[serialize(n) for n in db.scalars(select(Notification).where(Notification.user_id==u.id))],'submissions':[serialize(s,('code',)) for s in db.scalars(select(Submission).where(Submission.user_id==u.id,Submission.olympiad_id.in_([r['olympiad_id'] for r in regs])).order_by(Submission.created_at.desc()).limit(100))],'server_time':now()}
 
 @app.post('/api/registrations/{oid}',status_code=201)
 def join(oid:str,data:Join,u:User=Depends(current_user),db:DBSession=Depends(get_db)):
@@ -274,8 +297,8 @@ def event(sid:str,data:EventInput,request:Request,u:User=Depends(current_user),d
     db.add(AntiCheatEvent(participant_id=r.id,olympiad_id=s.olympiad_id,stage_id=sid,event_type=data.event_type,metadata_json=data.metadata)); db.commit(); return {'saved':True}
 
 @app.get('/api/results/{oid}')
-def results(oid:str,level:int|None=None,db:DBSession=Depends(get_db)):
-    o=get_or_404(db,Olympiad,oid)
+def results(oid:str,request:Request,level:int|None=None,db:DBSession=Depends(get_db)):
+    o=get_or_404(db,Olympiad,oid);visible_event(db,o,browsing_user(request,db))
     if not o.ranking_visible: raise HTTPException(403,'Рейтинг пока скрыт')
     return ranking(db,oid,level)
 
@@ -291,8 +314,10 @@ def ranking(db,oid,level=None):
     return [r|{'place':i+1} for i,r in enumerate(rows)]
 
 @app.get('/api/admin/olympiads')
-def admin_olympiads(u:User=Depends(admin),db:DBSession=Depends(get_db)):
-    return [serialize(o) for o in db.scalars(select(Olympiad).order_by(Olympiad.status!='active',Olympiad.type,Olympiad.title))]
+def admin_olympiads(current:bool=False,u:User=Depends(admin),db:DBSession=Depends(get_db)):
+    query=select(Olympiad).order_by(Olympiad.type,Olympiad.title)
+    if current:query=query.where(Olympiad.id.in_([academy_id('SCHOOL'),academy_id('SPO')]))
+    return [serialize(o) for o in db.scalars(query)]
 
 @app.post('/api/admin/olympiads',status_code=201)
 def create_olympiad(data:OlympiadInput,u:User=Depends(admin),db:DBSession=Depends(get_db)):

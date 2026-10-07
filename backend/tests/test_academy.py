@@ -44,7 +44,7 @@ def test_atomic_repeatable_import(academy_clients):
         response = admin.post('/api/admin/adventures/academy',json={'type':audience})
         assert response.status_code == 201, response.text
         event = response.json()['olympiad']
-        assert event['status'] == 'draft'
+        assert event['status'] == next(o['status'] for o in before if o['id']==event['id'])
         repeated = admin.post('/api/admin/adventures/academy',json={'type':audience}).json()
         assert not repeated['created'] and repeated['olympiad']['id'] == event['id']
         stage = admin.get('/api/admin/olympiads/'+event['id']+'/stages').json()
@@ -55,7 +55,7 @@ def test_atomic_repeatable_import(academy_clients):
         assert len(tasks)==12 and sum(t['kind']=='choice' for t in tasks)==2 and sum(t['kind']=='text' for t in tasks)==2
         assert sum(t['points'] for t in tasks) == 1000
         public = admin.get('/api/olympiads').json()
-        assert event['id'] not in {o['id'] for o in public}
+        assert (event['id'] in {o['id'] for o in public}) == (event['status']!='draft')
     for oid, stages in old_counts.items():
         for sid, count in stages:
             assert len(admin.get('/api/admin/stages/'+sid+'/tasks').json()) == count
@@ -111,8 +111,7 @@ def test_eight_chapters_real_judge_and_protected_ending(academy_clients):
         ending=student.get('/api/stages/'+sid+'/academy-ending')
         assert ending.status_code==200 and 'забытый ИИ' in ending.json()['text']
         profile=student.get('/api/profile').json()
-        registration=next(r for r in profile['registrations'] if r['olympiad_id']==oid)
-        assert registration['stages'][0]['academy_ending_unlocked']
+        assert all(r['olympiad_id']!=oid for r in profile['registrations'])  # Isolated archive events are hidden from the single-adventure cabinet.
         assert student.post('/api/stages/'+sid+'/finish').status_code==200
         assert student.get('/api/stages/'+sid+'/academy-ending').status_code==200
     finally:

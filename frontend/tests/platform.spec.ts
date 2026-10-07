@@ -1,160 +1,33 @@
 import {test,expect,request} from '@playwright/test';
-const PASSWORD='DevOnly!Python2026';
-async function login(page:any,email:string){
- if(email!=='admin@example.org'){
-  const admin=await request.newContext({baseURL:'http://localhost:8080',extraHTTPHeaders:{Origin:'http://localhost:8080'}});
-  const login=await admin.post('/api/auth/login',{data:{email:'admin@example.org',password:PASSWORD}});expect(login.status()).toBe(200);const auth=await login.json();
-  const os=await (await admin.get('/api/admin/olympiads')).json();
-  for(const o of os){const rows=await (await admin.get('/api/admin/olympiads/'+o.id+'/participants?q='+encodeURIComponent(email))).json();const stages=await(await admin.get('/api/admin/olympiads/'+o.id+'/stages')).json();for(const r of rows)for(const s of stages)await admin.post('/api/admin/participants/'+r.id+'/reset-session/'+s.id,{headers:{'X-CSRF-Token':auth.csrf}});}
-  await admin.dispose();
- }
-await page.goto('/login');await page.getByLabel('Email',{exact:true}).fill(email);await page.getByLabel('Пароль',{exact:true}).fill(PASSWORD);await page.getByRole('button',{name:'Войти',exact:true}).click();await expect(page).toHaveURL(/dashboard/);}
-test('Главная и отдельные регистрационные формы',async({page})=>{
- await page.goto('/');await expect(page.getByRole('heading',{name:'Выбери свою олимпиаду'})).toBeVisible();
- const cards=page.locator('article');await expect(cards.filter({has:page.getByRole('heading',{name:'Олимпиада для школьников',exact:true})})).toHaveCount(1);await expect(cards.filter({has:page.getByRole('heading',{name:'Олимпиада для студентов СПО',exact:true})})).toHaveCount(1);
- await cards.filter({has:page.getByRole('heading',{name:'Олимпиада для школьников',exact:true})}).getByRole('link',{name:/Зарегистрироваться/}).click();
- await expect(page.getByRole('combobox',{name:'Класс',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'Класс',exact:true}).locator('option')).toHaveText(['10 класс','11 класс']);await expect(page.getByRole('combobox',{name:'Курс',exact:true})).toHaveCount(0);await expect(page.getByText(/наставник/i)).toHaveCount(0);
- await page.goto('/');await page.locator('article').filter({has:page.getByRole('heading',{name:'Олимпиада для студентов СПО',exact:true})}).getByRole('link',{name:/Зарегистрироваться/}).click();
- await expect(page.getByRole('combobox',{name:'Курс',exact:true})).toBeVisible();await expect(page.getByRole('combobox',{name:'Класс',exact:true})).toHaveCount(0);await expect(page.getByText(/наставник/i)).toHaveCount(0);
+const URL='http://localhost:8080',PASSWORD='DevOnly!Python2026';
+async function login(page:any,email:string){await page.goto('/login');await page.getByLabel('Email',{exact:true}).fill(email);await page.getByLabel('Пароль',{exact:true}).fill(PASSWORD);await page.getByRole('button',{name:'Войти',exact:true}).click();await expect(page).toHaveURL(/dashboard/);}
+
+test('Гость видит одно приключение и понятную регистрацию',async({page})=>{
+ await page.goto('/');await expect(page.getByRole('heading',{level:1})).toHaveText('Сбой в Академии Алгоритмов');await expect(page.getByRole('link',{name:'Я школьник · 10–11 класс',exact:true})).toHaveCount(1);await expect(page.getByRole('link',{name:'Я студент СПО · 1–2 курс',exact:true})).toHaveCount(1);await expect(page.getByRole('combobox')).toHaveCount(0);await expect(page.getByText('Выбери свою олимпиаду',{exact:true})).toHaveCount(0);
+ await page.getByText('Какие задания будут?',{exact:true}).click();await expect(page.locator('.simple-task-list li')).toHaveCount(8);await page.getByRole('button',{name:'Основной этап',exact:true}).click();await expect(page.locator('.simple-task-list li')).toHaveCount(4);
+ await page.setViewportSize({width:390,height:844});await page.reload();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);await page.screenshot({path:'/tmp/simple-adventure-mobile.png',fullPage:true});
 });
-test('Администратор видит отдельные олимпиады, этапы и скрытые тесты',async({page})=>{
- await login(page,'admin@example.org');await page.goto('/admin');
- await expect(page.getByRole('heading',{name:'Администрирование'})).toBeVisible();
- await page.locator('main > .row select').selectOption({label:'Школьники · Олимпиада для школьников'});
- await page.getByRole('button',{name:'Настройки',exact:true}).click();await expect(page.getByLabel('Начало регистрации')).toBeVisible();
- await page.getByRole('button',{name:'Этапы',exact:true}).click();await expect(page.getByRole('heading',{name:'Отборочный этап'})).toBeVisible();
- await page.getByRole('button',{name:'Задания',exact:true}).click();await page.getByRole('button',{name:'Редактировать',exact:true}).first().click();await expect(page.getByRole('heading',{name:'Примеры проверки',exact:true})).toBeVisible();await expect(page.getByLabel('Публичный пример')).toHaveCount(2);
-});
-test('Monaco, отправка, восстановление черновика и разделение задач',async({page})=>{
+
+test('Школьник видит только свои два этапа во всех разделах',async({page})=>{
  const faults:string[]=[];page.on('pageerror',e=>faults.push(e.message));
- await login(page,'school@example.org');await page.getByRole('button',{name:/Начать этап|Продолжить этап/}).first().click();
- await expect(page.locator('.monaco-editor')).toBeVisible({timeout:20000});
- await expect(page.locator('.statement h2')).toHaveText('Сумма двух чисел');
- await expect(page.getByText('Сумма квадратов',{exact:true})).toHaveCount(0);
- await page.locator('.monaco-editor textarea').focus();await page.keyboard.press('Control+A');await page.keyboard.type('print(sum(map(int,input().split())))');
- await expect(page.getByText('Черновик сохранён на сервере',{exact:true})).toBeVisible({timeout:15000});
- await page.getByRole('button',{name:'Отправить решение',exact:true}).click();await expect(page.locator('.console')).toContainText('Accepted',{timeout:30000});
- await expect(page.locator('.timer')).not.toHaveText('00:00:00');const before=await page.locator('.timer').textContent();await page.reload();await expect(page.locator('.monaco-editor')).toBeVisible();await expect(page.locator('.monaco-editor')).toContainText('sum');
- await expect(page.locator('.timer')).not.toHaveText('00:00:00');const after=await page.locator('.timer').textContent();const seconds=(s:string|null)=>s!.split(':').reduce((n,v)=>n*60+Number(v),0);expect(seconds(after)).toBeGreaterThan(0);expect(seconds(after)).toBeLessThanOrEqual(seconds(before));expect(faults).toEqual([]);
- await page.screenshot({path:'/tmp/olympiad-exam.png',fullPage:true});
-});
-test('Участник СПО получает только задачи СПО',async({page})=>{
- await login(page,'spo1@example.org');await page.getByRole('button',{name:/Начать этап|Продолжить этап/}).first().click();
- await expect(page.locator('.statement h2')).toHaveText('Сумма квадратов');await expect(page.getByText('Сумма двух чисел',{exact:true})).toHaveCount(0);
+ const categories=await(await page.request.get('/api/olympiads')).json(),spo=categories.find((o:any)=>o.type==='SPO');
+ await login(page,'school@example.org');await expect(page.getByText('Другие олимпиады',{exact:true})).toHaveCount(0);await expect(page.getByRole('heading',{name:'Отборочный этап',exact:true})).toHaveCount(1);await expect(page.getByRole('heading',{name:'Основной этап',exact:true})).toHaveCount(1);await expect(page.getByRole('link',{name:'Администратор',exact:true})).toHaveCount(0);
+ await page.goto('/');await expect(page.locator('main')).toContainText('Школьники, 10–11 класс');await expect(page.getByRole('link',{name:/Я студент СПО/})).toHaveCount(0);await expect(page.getByRole('link',{name:'Открыть личный кабинет',exact:true})).toBeVisible();
+ await page.goto('/schedule');await expect(page.locator('main')).toContainText('Школьники');await expect(page.locator('main')).not.toContainText('СПО');
+ await page.goto('/results');await expect(page.locator('main')).not.toContainText('Студенты СПО');await expect(page.getByRole('combobox').locator('option')).toHaveText(['Все участники','10 класс','11 класс']);
+ await page.goto('/register/'+spo.id);await expect(page.locator('.error')).toContainText('недоступна');await expect(page.getByRole('combobox',{name:'Курс',exact:true})).toHaveCount(0);expect((await page.request.get('/api/olympiads/'+spo.id)).status()).toBe(403);
+ await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Отборочный этап',exact:true})).toBeVisible();await page.screenshot({path:'/tmp/simple-school-dashboard.png',fullPage:true});expect(faults).toEqual([]);
 });
 
-test('Упрощённая форма: пример, предпросмотр и сохранение',async({page})=>{
- await login(page,'admin@example.org');await page.goto('/admin');
- await page.locator('main > .row select').selectOption({label:'Школьники · Олимпиада для школьников'});
- await page.getByRole('button',{name:'Задания',exact:true}).click();
- await page.getByRole('button',{name:'+ Добавить задание',exact:true}).click();
- await page.getByRole('button',{name:'Заполнить учебным примером',exact:true}).click();
- await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Сумма двух чисел');
- await page.getByRole('button',{name:'Посмотреть условие глазами участника'}).click();
- await expect(page.locator('form').getByRole('heading',{name:'Сумма двух чисел',exact:true})).toBeVisible();
- let payload:any;
- await page.route('**/api/admin/stages/*/tasks',async route=>{if(route.request().method()==='POST'){payload=route.request().postDataJSON();await route.fulfill({status:201,json:{id:'test-task'}});}else await route.continue();});
- await page.getByRole('button',{name:'Сохранить задание',exact:true}).click();
- await expect(page.getByText('Изменения сохранены',{exact:true})).toBeVisible();
- expect(payload.time_limit).toBe(2);expect(payload.memory_limit).toBe(128);
- expect(payload.tests).toEqual([{input:'2 3\n',expected:'5\n',public:true},{input:'-10 7\n',expected:'-3\n',public:false}]);
+test('Студент СПО не видит школьную категорию',async({page})=>{
+ await login(page,'spo1@example.org');await expect(page.getByRole('heading',{name:'Отборочный этап',exact:true})).toHaveCount(1);await expect(page.getByRole('heading',{name:'Основной этап',exact:true})).toHaveCount(1);await expect(page.getByText('Другие олимпиады',{exact:true})).toHaveCount(0);
+ await page.goto('/');await expect(page.locator('main')).toContainText('Студенты СПО, 1–2 курс');await expect(page.getByRole('link',{name:/Я школьник/})).toHaveCount(0);await page.goto('/schedule');await expect(page.locator('main')).not.toContainText('Школьники');
+ await page.goto('/results');await expect(page.getByRole('combobox').locator('option')).toHaveText(['Все участники','1 курс','2 курс']);
 });
 
-test('Шаблоны Академии: глава, скрытые проверки и замена',async({page})=>{
- await login(page,'admin@example.org');await page.goto('/admin');
- await page.locator('main > .row select').selectOption({label:'Школьники · Олимпиада для школьников'});
- await page.getByRole('button',{name:'Задания',exact:true}).click();await page.getByRole('button',{name:'+ Добавить задание',exact:true}).click();
- const templates=page.getByRole('combobox',{name:'Глава приключения',exact:true});await expect(templates.locator('option')).toHaveCount(8);
- await page.getByRole('button',{name:'Использовать выбранную главу'}).click();
- await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Код от двери');
- await expect(page.getByRole('textbox',{name:'Вход',exact:true}).first()).toHaveValue('5072');
- await expect(page.getByRole('textbox',{name:'Ожидаемый вывод',exact:true}).first()).toHaveValue('14');
- await templates.selectOption('2');page.once('dialog',dialog=>dialog.dismiss());await page.getByRole('button',{name:'Использовать выбранную главу'}).click();
- await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Код от двери');
- page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Использовать выбранную главу'}).click();
- await expect(page.getByLabel('Название',{exact:true})).toHaveValue('Повреждённый пропуск');
- let payload:any;await page.route('**/api/admin/stages/*/tasks',async route=>{if(route.request().method()==='POST'){payload=route.request().postDataJSON();await route.fulfill({status:201,json:{id:'test-task'}});}else await route.continue();});
- await page.getByRole('button',{name:'Сохранить задание',exact:true}).click();await expect(page.getByText('Изменения сохранены',{exact:true})).toBeVisible();
- expect(payload.tests).toHaveLength(8);expect(payload.tests.filter((t:any)=>t.public)).toHaveLength(2);expect(payload.academy_chapter).toBe(2);
- expect(payload.tests).toContainEqual({input:'5\n3 3 2 2 1',expected:'2',public:false});expect(payload.statement).toContain('различное');
-});
-
-test('Главная Академии: опубликованные главы и мобильная версия',async({page})=>{
- await page.setViewportSize({width:1440,height:1000});await page.goto('/');
- await expect(page.getByRole('heading',{level:1})).toContainText('Сбой в Академии');
- await expect(page.locator('.chapter-card').first()).toBeVisible();
- await page.screenshot({path:'/tmp/academy-home-desktop.png',fullPage:false});
- await page.setViewportSize({width:390,height:844});await page.reload();
- await expect(page.locator('.chapter-card').first()).toBeVisible();
- expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
- await page.getByRole('link',{name:'Посмотреть главы ↓'}).click();await expect(page).toHaveURL(/#mission-map$/);
- await expect(page.getByRole('heading',{name:'Главы приключения'})).toBeInViewport();
- await page.screenshot({path:'/tmp/academy-home-mobile.png',fullPage:true});
-});
-
-test('Создание всего приключения из панели администратора',async({page})=>{
- await login(page,'admin@example.org');await page.goto('/admin');
- await page.getByLabel('Для кого приключение').selectOption('SPO');
- await page.getByRole('button',{name:'Создать приключение',exact:true}).click();
- await expect(page.getByRole('button',{name:'Редактировать',exact:true})).toHaveCount(8);
- await expect(page.getByRole('heading',{name:'Код от двери',exact:true})).toBeVisible();
- await expect(page.getByRole('heading',{name:'Диагностика панели',exact:true})).toBeVisible();await page.getByRole('combobox',{name:'Этап',exact:true}).selectOption({index:1});await expect(page.getByRole('button',{name:'Редактировать',exact:true})).toHaveCount(4);await expect(page.getByRole('heading',{name:'Последний протокол',exact:true})).toBeVisible();
- await expect(page.locator('.notice')).toContainText(/Приключение создано|Эта олимпиада уже создана/);
- await page.getByRole('button',{name:'Создать приключение',exact:true}).click();
- await expect(page.locator('.notice')).toContainText('Эта олимпиада уже создана');
- await expect(page.getByRole('button',{name:'Редактировать',exact:true})).toHaveCount(8);
- await page.getByRole('button',{name:'Настройки',exact:true}).click();
- await expect(page.getByRole('combobox',{name:'Статус',exact:true})).toHaveValue('draft');
- await expect(page.getByRole('option',{name:'Олимпиада открыта',exact:true})).toHaveCount(1);
-});
-
-test('Приключение: решение последней главы, прогресс и финал',async({page})=>{
- test.setTimeout(90000);
- const admin=await request.newContext({baseURL:'http://localhost:8080',extraHTTPHeaders:{Origin:'http://localhost:8080'}});
- const logged=await admin.post('/api/auth/login',{data:{email:'admin@example.org',password:PASSWORD}});expect(logged.status()).toBe(200);
- const auth=await logged.json(),csrf={'X-CSRF-Token':auth.csrf};
- const now=Date.now(),event={type:'SCHOOL',title:'Academy browser '+now,status:'active',registration_start:new Date(now-86400000).toISOString(),registration_end:new Date(now+86400000).toISOString()};
- const created=await admin.post('/api/admin/olympiads',{headers:csrf,data:event});expect(created.status()).toBe(201);const oid=(await created.json()).id;
- try{
-  const stage=await admin.post('/api/admin/olympiads/'+oid+'/stages',{headers:csrf,data:{title:'Восемь глав Академии',kind:'main',starts_at:new Date(now-60000).toISOString(),ends_at:new Date(now+86400000).toISOString(),duration_minutes:180}});expect(stage.status()).toBe(201);const sid=(await stage.json()).id;
-  const pack=await(await admin.get('/api/admin/task-packs/academy')).json();
-  for(const chapter of pack.tasks.filter((t:any)=>t.kind==='code')){const {chapter:number,stars,topic,key,stage_kind,...fields}=chapter;fields.position=number;const response=await admin.post('/api/admin/stages/'+sid+'/tasks',{headers:csrf,data:{...fields,academy_chapter:number}});expect(response.status()).toBe(201);}
-  await login(page,'school@example.org');
-  const profile=await(await page.request.get('/api/profile')).json();
-  const joined=await page.request.post('/api/registrations/'+oid,{headers:{Origin:'http://localhost:8080','X-CSRF-Token':profile.csrf},data:{school_class:10,consent_data:true,consent_rules:true}});expect(joined.status()).toBe(201);
-  await page.goto('/exam/'+sid);await expect(page.locator('.monaco-editor')).toBeVisible({timeout:20000});
-  await expect(page.getByText('Пройдено 0 из 8 глав',{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Открыть финал приключения'})).toHaveCount(0);
-  const loaded=page.waitForResponse(r=>r.url().endsWith('/draft')&&r.request().method()==='GET');await page.getByRole('button',{name:'Глава 8: Последний протокол',exact:true}).click();await loaded;await expect(page.locator('.statement h2')).toHaveText('Последний протокол');
-  const code='from collections import deque\nn=int(input())\na=[int(x)-1 for x in input().split()]\nd=[-1]*n\nd[0]=0\nq=deque([0])\nwhile q:\n    v=q.popleft()\n    if v==n-1: break\n    for u in (v-1,v+1,a[v]):\n        if 0<=u<n and d[u]<0:\n            d[u]=d[v]+1\n            q.append(u)\nprint(d[-1])\n';
-  await page.locator('.monaco-editor textarea').focus();await page.keyboard.press('Control+A');await page.context().grantPermissions(['clipboard-read','clipboard-write']);await page.evaluate(text=>navigator.clipboard.writeText(text),code);await page.keyboard.press('Control+V');
-  await page.getByRole('button',{name:'Отправить решение',exact:true}).click();await expect(page.locator('.console')).toContainText('Accepted',{timeout:60000});
-  await expect(page.getByText('Пройдено 1 из 8 глав',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Открыть финал приключения',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Ядро восстановлено. Но кто такой Null?'})).toBeVisible();await expect(page.locator('.academy-ending')).toContainText('забытый ИИ');
-  await page.screenshot({path:'/tmp/academy-exam.png',fullPage:true});
-  await page.reload();await expect(page.getByText('Пройдено 1 из 8 глав',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Открыть финал приключения',exact:true})).toBeVisible();
-  await page.goto('/dashboard');const storyCard=page.locator('section.card').filter({has:page.getByRole('heading',{name:event.title,exact:true})});await storyCard.getByRole('button',{name:'Открыть финал приключения',exact:true}).click();await expect(storyCard.locator('.academy-ending')).toContainText('забытый ИИ');
- }finally{await admin.put('/api/admin/olympiads/'+oid,{headers:csrf,data:{...event,status:'draft'}});await admin.dispose();}
-});
-
-
-test('Главная отражает добавление и переименование заданий опубликованного этапа',async({page})=>{
- const admin=await request.newContext({baseURL:'http://localhost:8080',extraHTTPHeaders:{Origin:'http://localhost:8080'}});
- const logged=await admin.post('/api/auth/login',{data:{email:'admin@example.org',password:PASSWORD}});expect(logged.status()).toBe(200);
- const csrf={'X-CSRF-Token':(await logged.json()).csrf};const now=Date.now();
- const event={type:'SCHOOL',title:'Live chapters '+now,status:'scheduled',registration_start:new Date(now).toISOString(),registration_end:new Date(now+86400000).toISOString()};
- const created=await admin.post('/api/admin/olympiads',{headers:csrf,data:event});expect(created.status()).toBe(201);const oid=(await created.json()).id;
- try{
-  const stage=await admin.post('/api/admin/olympiads/'+oid+'/stages',{headers:csrf,data:{title:'Живые главы',kind:'main',starts_at:new Date(now+86400000).toISOString(),ends_at:new Date(now+172800000).toISOString(),duration_minutes:120}});expect(stage.status()).toBe(201);const sid=(await stage.json()).id;
-  const fields={title:'Учебная дверь',statement:'private_statement',academy_chapter:1,tests:[{input:'private_input',expected:'private_output',public:false}]};
-  const task=await admin.post('/api/admin/stages/'+sid+'/tasks',{headers:csrf,data:fields});expect(task.status()).toBe(201);const tid=(await task.json()).id;
-  await page.goto('/');const selector=page.getByRole('combobox',{name:'Олимпиада и этап',exact:true});await selector.selectOption(sid);
-  await expect(page.locator('.chapter-card')).toHaveCount(1);await expect(page.locator('.chapter-grid')).toContainText('Учебная дверь');
-  const published=await page.request.get('/api/olympiads');const content=await published.text();for(const secret of ['private_statement','private_input','private_output'])expect(content).not.toContain(secret);
-  expect((await admin.put('/api/admin/tasks/'+tid,{headers:csrf,data:{...fields,title:'Новый код от двери'}})).status()).toBe(200);
-  expect((await admin.post('/api/admin/stages/'+sid+'/tasks',{headers:csrf,data:{...fields,title:'Дополнительный коридор',academy_chapter:null}})).status()).toBe(201);
-  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(page.locator('.chapter-card')).toHaveCount(2);
-  await expect(page.locator('.chapter-grid')).toContainText('Новый код от двери');await expect(page.locator('.chapter-grid')).toContainText('Дополнительный коридор');await expect(page.locator('.chapter-grid')).not.toContainText('Учебная дверь');
-  await admin.put('/api/admin/olympiads/'+oid,{headers:csrf,data:{...event,status:'draft'}});await page.reload();await expect(selector.locator('option[value="'+sid+'"]')).toHaveCount(0);
- }finally{await admin.put('/api/admin/olympiads/'+oid,{headers:csrf,data:{...event,status:'draft'}});await admin.dispose();}
+test('Администратор настраивает категории одного приключения без создания копий',async({page})=>{
+ await login(page,'admin@example.org');await page.goto('/admin');await expect(page.getByRole('heading',{name:'Настройка приключения',exact:true})).toBeVisible();const category=page.getByRole('combobox',{name:'Категория участников',exact:true});await expect(category.locator('option')).toHaveText(['Школьники · 10–11 класс','Студенты СПО · 1–2 курс']);await expect(page.getByRole('button',{name:'Создать приключение',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'+ Создать олимпиаду',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Даты этапов',exact:true}).click();await expect(page.getByRole('button',{name:'Изменить',exact:true})).toHaveCount(2);await expect(page.getByRole('button',{name:'+ Добавить этап',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Задания',exact:true}).click();await expect(page.getByRole('button',{name:'Редактировать',exact:true})).toHaveCount(8);await page.getByRole('button',{name:'+ Добавить задание',exact:true}).click();const template=page.getByRole('combobox',{name:'Готовое задание',exact:true});await template.selectOption('q2');await page.getByRole('button',{name:'Заполнить задание',exact:true}).click();await expect(page.getByRole('combobox',{name:'Тип задания',exact:true})).toHaveValue('text');await expect(page.getByRole('textbox',{name:/^Критерии оценки/})).toHaveValue(/50 баллов/);
+ await page.getByRole('combobox',{name:'Этап',exact:true}).selectOption({index:1});await expect(page.getByRole('button',{name:'Редактировать',exact:true})).toHaveCount(4);await expect(page.getByRole('heading',{name:'Последний протокол',exact:true})).toBeVisible();await page.screenshot({path:'/tmp/simple-admin.png',fullPage:true});
 });

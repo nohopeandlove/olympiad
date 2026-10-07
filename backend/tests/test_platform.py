@@ -3,6 +3,8 @@ import os, time, uuid, re
 from datetime import datetime, timezone, timedelta
 import httpx
 import pytest
+from app.academy import academy_id
+from academy_reference import SOLUTIONS
 
 URL=os.getenv('TEST_BASE_URL','http://localhost:8080')
 PASSWORD='DevOnly!Python2026'
@@ -33,7 +35,7 @@ def events(clients):
     rows=clients['admin'].get('/api/admin/olympiads').json()
     result={}
     for typ in ['SCHOOL','SPO']:
-        o=next(o for o in rows if o['type']==typ and o['title']==('Олимпиада для школьников' if typ=='SCHOOL' else 'Олимпиада для студентов СПО'))
+        o=next(o for o in rows if o['id']==academy_id(typ))
         stages=clients['admin'].get(f"/api/admin/olympiads/{o['id']}/stages").json()
         s=next(s for s in stages if s['kind']=='qualifying')
         ts=clients['admin'].get(f"/api/admin/stages/{s['id']}/tasks").json()
@@ -71,15 +73,15 @@ def test_before_stage_start(clients,events):
     tasks=clients['admin'].get(f"/api/admin/stages/{main['id']}/tasks").json()
     assert clients['school'].post(f"/api/tasks/{tasks[0]['id']}/submissions",json={'code':'print(1)'}).status_code==403
 
-@pytest.mark.parametrize('who,typ,code',[('school','SCHOOL','print(sum(map(int,input().split())))'),('spo1','SPO','print(sum(x*x for x in map(int,input().split())))'),('spo2','SPO','print(sum(x*x for x in map(int,input().split())))')])
+@pytest.mark.parametrize('who,typ,code',[('school','SCHOOL',SOLUTIONS[1]),('spo1','SPO',SOLUTIONS[1]),('spo2','SPO',SOLUTIONS[1])])
 def test_full_judge_workflow(clients,events,who,typ,code):
     c=clients[who];e=events[typ];sid=e['s']['id'];tid=e['tasks'][0]['id']
     a=c.post(f'/api/stages/{sid}/start');assert a.status_code==200,a.text
     a2=c.post(f'/api/stages/{sid}/start');assert a.json()['deadline']==a2.json()['deadline']
     ts=c.get(f'/api/stages/{sid}/tasks');assert ts.status_code==200
     assert all('tests' not in t for t in ts.json())
-    assert len(ts.json()[0]['examples'])==1
-    hidden=e['tasks'][0]['tests'][1];assert hidden['id'] not in ts.text
+    assert len(ts.json()[0]['examples'])==2
+    hidden=next(c for c in e['tasks'][0]['tests'] if not c['public']);assert hidden['id'] not in ts.text
     r=c.put(f'/api/tasks/{tid}/draft',json={'code':code});assert r.status_code==200
     assert c.get(f'/api/tasks/{tid}/draft').json()['code']==code
     s=c.post(f'/api/tasks/{tid}/submissions',json={'code':code,'mode':'submit'});assert s.status_code==202,s.text
@@ -225,7 +227,8 @@ def test_admin_to_new_participant_complete_flow(clients,typ,code):
             assert admin.put(f'/api/admin/tasks/{tid}',json=task).status_code==409
             s=c.post(f'/api/tasks/{tid}/submissions',json={'code':code});assert s.status_code==202,s.text
             judged=wait(c,s.json()['id']);assert judged['status']=='Accepted' and judged['score']==80,judged
-            rows=c.get(f'/api/results/{oid}').json();assert len(rows)==1 and rows[0]['score']==80
+            assert c.get(f'/api/results/{oid}').status_code==404  # Legacy test events are absent from the public adventure.
+            rows=admin.get(f'/api/admin/olympiads/{oid}/ranking').json();assert len(rows)==1 and rows[0]['score']==80
             assert c.post(f'/api/stages/{sid}/finish').status_code==200
             assert c.post(f'/api/tasks/{tid}/submissions',json={'code':code}).status_code==403
     finally:

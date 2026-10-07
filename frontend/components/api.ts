@@ -30,4 +30,4 @@ export const date=(value:string)=>new Date(value).toLocaleString('ru-RU',{timeZo
 export const statusLabel:Record<string,string>={draft:'Черновик',scheduled:'Запланирована',active:'Олимпиада открыта',finished:'Завершена'};
 export const json=(data:unknown)=>JSON.stringify(data);
 
-export const answerStatus=(s:string)=>({'Pending Review':'Ожидает оценки преподавателя',Reviewed:'Проверено преподавателем',Accepted:'Принято','Wrong Answer':'Неверный ответ',Queued:'В очереди',Running:'Проверяется'} as Record<string,string>)[s]||s;
+export const answerStatus=(s:string)=>({'Pending Review':'Ожидает оценки преподавателя',Reviewed:'Проверено преподавателем',Accepted:'Принято','Wrong Answer':'Неверный ответ',Queued:'В очереди',Running:'Проверяется','Time Limit Exceeded':'Превышено время выполнения','Memory Limit Exceeded':'Превышен лимит памяти','Interpreter Error':'Ошибка в коде','Runtime Error':'Ошибка при выполнении','System Error':'Сбой проверки. Обратитесь к организатору'} as Record<string,string>)[s]||s;
