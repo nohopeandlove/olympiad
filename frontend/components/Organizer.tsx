@@ -1,1 +1,1 @@
-export default function Organizer(){return <div className="organizer"><img src="/chrt-logo.png" alt="Логотип ЧРТ" width="100" height="60"/><div><span className="eyebrow">Организатор олимпиады</span><strong>ГБПОУ «Челябинский радиотехнический техникум»</strong></div></div>;}
+export default function Organizer(){return <div className="organizer"><img src="/chrt-logo.png?v=original-20261007" alt="Логотип ЧРТ" width="120" height="62"/><div><span className="eyebrow">Организатор олимпиады</span><strong>ГБПОУ «Челябинский радиотехнический техникум»</strong></div></div>;}
