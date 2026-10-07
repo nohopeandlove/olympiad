@@ -7,7 +7,14 @@ from sqlalchemy import select
 from .models import Olympiad, Stage, Task, TestCase, Submission, now
 from .schemas import TaskInput
 
-PACK = json.loads((Path(__file__).parent / 'content' / 'academy.json').read_text())
+CONTENT = Path(__file__).parent / 'content'
+LEGACY_PACK = json.loads((CONTENT / 'academy.json').read_text())
+PACKS = {audience: json.loads((CONTENT / filename).read_text()) for audience, filename in
+         [('SCHOOL', 'academy_school_v3.json'), ('SPO', 'academy_spo_v3.json')]}
+PACK = PACKS['SPO']
+
+def category_pack(audience):
+    return PACKS[audience]
 
 def task_input(chapter):
     fields = {k: v for k, v in chapter.items() if k not in {'chapter', 'stars', 'topic', 'key', 'stage_kind'}}
@@ -22,20 +29,21 @@ def create_academy(db, audience):
     existing = db.get(Olympiad, oid)
     if existing:
         return existing, False
+    pack = category_pack(audience)
     timestamp = now()
-    event = Olympiad(id=oid, type=audience, title=PACK['title'], description=PACK['intro'],
-        rules='## Миссия\nОтборочный этап: четыре задачи на Python и четыре контрольных вопроса (600 баллов). Основной этап продолжает сюжет: четыре задачи на Python (400 баллов). Максимум — 1000 баллов. Код оценивается по доле пройденных тестов; вопросы с выбором ответа — автоматически, развёрнутые ответы — преподавателем. На контрольный вопрос можно отправить один окончательный ответ. Задания можно решать в любом порядке внутри этапа. Финал откроется после принятого официального решения «Последнего протокола». Решайте самостоятельно.',
+    event = Olympiad(id=oid, type=audience, title=pack['title'], description=pack['intro'],
+        rules=pack['rules'],
         status='draft', registration_start=timestamp,
         registration_end=timestamp + timedelta(days=7), ranking_visible=False)
     db.add(event)
     db.flush()
-    for index, definition in enumerate(PACK['stages']):
+    for index, definition in enumerate(pack['stages']):
         stage = Stage(olympiad_id=oid, **definition,
             starts_at=timestamp + timedelta(days=8 + index * 2),
             ends_at=timestamp + timedelta(days=9 + index * 2))
         db.add(stage)
         db.flush()
-        for chapter in PACK['tasks']:
+        for chapter in pack['tasks']:
             if chapter['stage_kind'] != stage.kind: continue
             data = task_input(chapter)
             task = Task(olympiad_id=oid, stage_id=stage.id, **data.model_dump(exclude={'tests'}))

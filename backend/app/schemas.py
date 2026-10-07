@@ -86,7 +86,7 @@ class TaskInput(Strict):
     time_limit: int = Field(default=2, ge=1, le=10)
     memory_limit: int = Field(default=128, ge=32, le=256)
     points: int = Field(default=100, ge=1, le=1000)
-    academy_chapter: int | None = Field(default=None, ge=1, le=8)
+    academy_chapter: int | None = Field(default=None, ge=1, le=14)
     kind: Literal['code','choice','text'] = 'code'
     position: int = Field(default=0, ge=0, le=1000)
     answer_options: list[str] = Field(default_factory=list, max_length=8)

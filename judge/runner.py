@@ -8,6 +8,7 @@ def oom_count():
         return int(data.get('oom_kill',0))
     except OSError: return 0
 
+MAX_OUTPUT_BYTES=2 * 1024 * 1024
 job=json.loads(input())
 Path('/tmp/main.py').write_text(job['code'])
 result={'status':'Runtime Error','stdout':'','stderr':''}
@@ -32,10 +33,10 @@ else:
                 chunk=key.fileobj.read1(4096)
                 if not chunk: selector.unregister(key.fileobj); continue
                 output[key.data].extend(chunk)
-                if sum(len(v) for v in output.values())>32768:
+                if sum(len(v) for v in output.values())>MAX_OUTPUT_BYTES:
                     limited=True; p.kill(); break
             if limited: break
         p.wait(timeout=1)
-        result={'status':'Time Limit Exceeded' if timed or p.returncode==-24 else 'Runtime Error' if limited or p.returncode else 'OK','stdout':bytes(output['stdout'][:16384]).decode(errors='replace'),'stderr':bytes(output['stderr'][:16384]).decode(errors='replace')}
+        result={'status':'Time Limit Exceeded' if timed or p.returncode==-24 else 'Runtime Error' if limited or p.returncode else 'OK','stdout':bytes(output['stdout'][:MAX_OUTPUT_BYTES]).decode(errors='replace'),'stderr':bytes(output['stderr'][:4096]).decode(errors='replace')}
         if oom_count()>oom_before or 'MemoryError' in result['stderr']: result['status']='Memory Limit Exceeded'
 print(json.dumps(result),flush=True)

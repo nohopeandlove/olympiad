@@ -80,3 +80,88 @@ while queue:
 print(distance[-1])
 ''',
 }
+
+SCHOOL_SOLUTIONS = {
+1: SOLUTIONS[1],
+2: 'n=int(input())\nprint(max(map(int,input().split())))\n',
+3: "s=input()\nprint('YES' if s==s[::-1] else 'NO')\n",
+4: 'n=int(input())\nprint(sum(x>0 for x in map(int,input().split())))\n',
+5: 'n,k=map(int,input().split())\na=list(map(int,input().split()))\nprint(sum(a[i]+a[j]==k for i in range(n) for j in range(i+1,n)))\n',
+6: 'n,s,t=map(int,input().split())\na=list(map(int,input().split()))\nprint(-1 if any(a[min(s,t)-1:max(s,t)]) else abs(s-t))\n',
+7: 'n=int(input())\nprint((n+1)//2)\n',
+8: 'n,p=map(int,input().split())\nprint(min(n-1,1+n-p))\n',
+9: "n=int(input())\nprint(sum(input()=='ERROR' for _ in range(n)))\n",
+10: 'n=int(input())\na=list(map(int,input().split()))\nbest=length=0\nfor x in a:\n length=length+1 if x==1 else 0\n best=max(best,length)\nprint(best)\n',
+11: 'n=int(input())\nprint(*sorted(map(int,input().split())))\n',
+12: "s=input()\nbalance=0\nvalid=True\nfor c in s:\n balance+=1 if c=='(' else -1\n if balance<0:valid=False\nprint('YES' if valid and balance==0 else 'NO')\n",
+13: '''h,w=map(int,input().split())
+dp=[float('inf')]*w
+dp[0]=0
+for r in range(h):
+ a=list(map(int,input().split()))
+ for c in range(w):
+  dp[c]=a[c]+min(dp[c],dp[c-1] if c else float('inf'))
+print(dp[-1])
+''',
+14: 'print(len(set(input())))\n',
+}
+SPO_SOLUTIONS = {**SOLUTIONS,
+1: 'n=int(input())\nwhile n>=10:n=sum(map(int,str(n)))\nprint(n)\n',
+9: '''n,q=map(int,input().split())
+p=[0]
+for x in map(int,input().split()):p.append(p[-1]+x)
+for _ in range(q):
+ l,r=map(int,input().split())
+ print(p[r]-p[l-1])
+''',
+10: '''n,k=map(int,input().split())
+a=list(map(int,input().split()))
+left=total=0
+best=n+1
+for right,x in enumerate(a):
+ total+=x
+ while total>=k:
+  best=min(best,right-left+1)
+  total-=a[left]
+  left+=1
+print(best if best<=n else 0)
+''',
+11: '''import heapq
+p,n=map(int,input().split())
+queue=[(0,i) for i in range(1,p+1)]
+heapq.heapify(queue)
+for t in map(int,input().split()):
+ start,robot=heapq.heappop(queue)
+ print(robot,start)
+ heapq.heappush(queue,(start+t,robot))
+''',
+12: '''s=input()
+stack=[]
+valid=True
+for c in s:
+ if c in '([{':stack.append(c)
+ elif not stack or stack.pop()!={')':'(',']':'[','}':'{'}[c]:
+  valid=False
+  break
+print('YES' if valid and not stack else 'NO')
+''',
+13: '''h,w=map(int,input().split())
+dp=[float('inf')]*w
+dp[0]=0
+for r in range(h):
+ a=list(map(int,input().split()))
+ for c in range(w):
+  dp[c]=float('inf') if a[c]<0 else a[c]+min(dp[c],dp[c-1] if c else float('inf'))
+print(-1 if dp[-1]==float('inf') else dp[-1])
+''',
+14: '''s=input()
+last={}
+left=best=0
+for right,c in enumerate(s):
+ left=max(left,last.get(c,-1)+1)
+ last[c]=right
+ best=max(best,right-left+1)
+print(best)
+''',
+}
+CATEGORY_SOLUTIONS = {'SCHOOL': SCHOOL_SOLUTIONS, 'SPO': SPO_SOLUTIONS}

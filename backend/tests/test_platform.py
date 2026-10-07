@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 import httpx
 import pytest
 from app.academy import academy_id
-from academy_reference import SOLUTIONS
+from academy_reference import CATEGORY_SOLUTIONS
 
 URL=os.getenv('TEST_BASE_URL','http://localhost:8080')
 PASSWORD='DevOnly!Python2026'
@@ -73,7 +73,7 @@ def test_before_stage_start(clients,events):
     tasks=clients['admin'].get(f"/api/admin/stages/{main['id']}/tasks").json()
     assert clients['school'].post(f"/api/tasks/{tasks[0]['id']}/submissions",json={'code':'print(1)'}).status_code==403
 
-@pytest.mark.parametrize('who,typ,code',[('school','SCHOOL',SOLUTIONS[1]),('spo1','SPO',SOLUTIONS[1]),('spo2','SPO',SOLUTIONS[1])])
+@pytest.mark.parametrize('who,typ,code',[('school','SCHOOL',CATEGORY_SOLUTIONS['SCHOOL'][1]),('spo1','SPO',CATEGORY_SOLUTIONS['SPO'][1]),('spo2','SPO',CATEGORY_SOLUTIONS['SPO'][1])])
 def test_full_judge_workflow(clients,events,who,typ,code):
     c=clients[who];e=events[typ];sid=e['s']['id'];tid=e['tasks'][0]['id']
     a=c.post(f'/api/stages/{sid}/start');assert a.status_code==200,a.text

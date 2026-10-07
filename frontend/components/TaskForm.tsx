@@ -2,9 +2,9 @@
 import {useEffect,useState} from 'react';
 import Markdown from 'react-markdown';
 import {api} from './api';
-export default function TaskForm({value,onChange,onSave,stageKind}:{value:any;onChange:(key:string,value:any)=>void;onSave:()=>void;stageKind?:string}){
+export default function TaskForm({value,onChange,onSave,stageKind,audience}:{value:any;onChange:(key:string,value:any)=>void;onSave:()=>void;stageKind?:string;audience?:'SCHOOL'|'SPO'}){
  const [preview,setPreview]=useState(false),[error,setError]=useState(''),[templateId,setTemplateId]=useState(''),[templates,setTemplates]=useState<any[]>([]);
- useEffect(()=>{api('/admin/task-packs/academy').then(pack=>setTemplates(pack.tasks)).catch(e=>setError(e.message));},[]);
+ useEffect(()=>{api('/admin/task-packs/academy?audience='+(audience||'SPO')).then(pack=>setTemplates(pack.tasks)).catch(e=>setError(e.message));},[audience]);
  const available=templates.filter(t=>!stageKind||t.stage_kind===stageKind),selected=available.find(t=>t.key===templateId)||available[0],kind=value.kind||'code';
  function apply(){if(!selected)return;if((value.title.trim()||value.statement.trim())&&!window.confirm('Заменить введённое задание шаблоном «'+selected.title+'»?'))return;for(const [key,v] of Object.entries(selected)){if(!['chapter','stars','topic','key','stage_kind'].includes(key))onChange(key,v);}onChange('academy_chapter',selected.chapter);setError('');}
  function text(key:string,label:string,hint='',required=false){return <label>{label}<textarea value={value[key]||''} required={required} maxLength={key==='statement'?50000:10000} placeholder={hint} onChange={e=>onChange(key,e.target.value)}/>{hint&&<span className="muted small">{hint}</span>}</label>;}

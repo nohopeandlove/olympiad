@@ -1,3 +1,4 @@
+from typing import Literal
 import csv, io, secrets, smtplib
 from datetime import timedelta
 from email.message import EmailMessage
@@ -10,7 +11,7 @@ from .models import *
 from .schemas import *
 from .security import current_user, admin, limit, hasher, password_ok, dummy_hash, digest, new_session, exam_session
 from .config import settings
-from .academy import PACK, create_academy, academy_id, ordered_tasks, completed_chapters
+from .academy import category_pack, PACK, create_academy, academy_id, ordered_tasks, completed_chapters
 from .task_timing import checkpoint, snapshot
 
 app = FastAPI(title='Python Олимпиады', version='1.0.0', docs_url='/api/docs', openapi_url='/api/openapi.json')
@@ -400,8 +401,8 @@ def admin_tasks(sid:str,u:User=Depends(admin),db:DBSession=Depends(get_db)):
     return [serialize(t)|{'tests':[serialize(c) for c in db.scalars(select(TestCase).where(TestCase.task_id==t.id))]} for t in ordered_tasks(db.scalars(select(Task).where(Task.stage_id==sid)))]
 
 @app.get('/api/admin/task-packs/academy')
-def academy_pack(u:User=Depends(admin)):
-    return {k:v for k,v in PACK.items() if k!='finale'}
+def academy_pack(audience:Literal['SCHOOL','SPO']='SPO',u:User=Depends(admin)):
+    return {k:v for k,v in category_pack(audience).items() if k!='finale'}
 
 @app.post('/api/admin/adventures/academy',status_code=201)
 def install_academy(data:AcademyInput,u:User=Depends(admin),db:DBSession=Depends(get_db)):

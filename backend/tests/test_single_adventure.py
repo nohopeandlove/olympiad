@@ -22,7 +22,7 @@ def test_one_adventure_for_guests(readers):
     assert len(rows)==2  # Two category records inside the single public adventure.
     for event in rows:
         assert [s['kind'] for s in event['stages']]==['qualifying','main']
-        assert [len(s['chapters']) for s in event['stages']]==[8,4]
+        assert [len(s['chapters']) for s in event['stages']]==[8,10]
         assert 'correct_option' not in str(event) and 'rubric' not in str(event)
 
 @pytest.mark.parametrize('who,category',[('school','SCHOOL'),('spo1','SPO'),('spo2','SPO')])

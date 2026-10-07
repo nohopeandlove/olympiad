@@ -5,13 +5,13 @@ import uuid
 from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
-from app.academy import PACK, task_input
-from academy_reference import SOLUTIONS
+from app.academy import PACK, LEGACY_PACK, category_pack, task_input
+from academy_reference import SOLUTIONS, CATEGORY_SOLUTIONS
 
 URL = 'http://localhost:8080'
 PASSWORD = 'DevOnly!Python2026'
 
-@pytest.mark.parametrize('chapter', [t for t in PACK['tasks'] if t['kind']=='code'], ids=lambda t: 'chapter-'+str(t['chapter']))
+@pytest.mark.parametrize('chapter', [t for t in LEGACY_PACK['tasks'] if t['kind']=='code'], ids=lambda t: 'chapter-'+str(t['chapter']))
 def test_authored_cases(chapter):
     data = task_input(chapter)
     assert len(data.tests) >= 6 and any(c.public for c in data.tests)
@@ -51,16 +51,16 @@ def test_atomic_repeatable_import(academy_clients):
         assert len(stage) == 2 and [s['kind'] for s in stage]==['qualifying','main']
         assert [s['duration_minutes'] for s in stage]==[120,180]
         tasks = [t for s in stage for t in admin.get('/api/admin/stages/'+s['id']+'/tasks').json()]
-        assert [t['academy_chapter'] for t in tasks if t['kind']=='code'] == list(range(1,9))
-        assert len(tasks)==12 and sum(t['kind']=='choice' for t in tasks)==2 and sum(t['kind']=='text' for t in tasks)==2
-        assert sum(t['points'] for t in tasks) == 1000
+        assert [t['academy_chapter'] for t in tasks if t['kind']=='code'] == [t['chapter'] for t in category_pack(audience)['tasks'] if t['kind']=='code']
+        assert len(tasks)==18 and sum(t['kind']=='choice' for t in tasks)==2 and sum(t['kind']=='text' for t in tasks)==2
+        assert sum(t['points'] for t in tasks) == 1600
         public = admin.get('/api/olympiads').json()
         assert (event['id'] in {o['id'] for o in public}) == (event['status']!='draft')
     for oid, stages in old_counts.items():
         for sid, count in stages:
             assert len(admin.get('/api/admin/stages/'+sid+'/tasks').json()) == count
     pack = admin.get('/api/admin/task-packs/academy').json()
-    assert 'finale' not in pack and len(pack['tasks']) == 12
+    assert 'finale' not in pack and len(pack['tasks']) == 18
 
 
 def checked(client, submission_id):
@@ -73,41 +73,44 @@ def checked(client, submission_id):
     pytest.fail('Judge did not finish')
 
 
-def test_eight_chapters_real_judge_and_protected_ending(academy_clients):
-    admin, student = academy_clients['admin'], academy_clients['school']
+@pytest.mark.parametrize('audience,who',[('SCHOOL','school'),('SPO','spo1')])
+def test_category_chapters_real_judge_and_protected_ending(academy_clients,audience,who):
+    pack=category_pack(audience);solutions=CATEGORY_SOLUTIONS[audience]
+    chapters=[t['chapter'] for t in pack['tasks'] if t['kind']=='code']
+    admin, student = academy_clients['admin'], academy_clients[who]
     timestamp = datetime.now(timezone.utc)
-    event = {'type':'SCHOOL','title':'Academy E2E '+uuid.uuid4().hex[:8],'description':PACK['intro'],'status':'active','registration_start':(timestamp-timedelta(days=1)).isoformat(),'registration_end':(timestamp+timedelta(days=1)).isoformat()}
+    event = {'type':audience,'title':'Academy E2E '+uuid.uuid4().hex[:8],'description':PACK['intro'],'status':'active','registration_start':(timestamp-timedelta(days=1)).isoformat(),'registration_end':(timestamp+timedelta(days=1)).isoformat()}
     response=admin.post('/api/admin/olympiads',json=event);assert response.status_code==201,response.text
     oid=response.json()['id']
     try:
-        stage = {'title':'Восемь глав','kind':'main','starts_at':(timestamp-timedelta(minutes=1)).isoformat(),'ends_at':(timestamp+timedelta(days=1)).isoformat(),'duration_minutes':180}
+        stage = {'title':'Четырнадцать глав','kind':'main','starts_at':(timestamp-timedelta(minutes=1)).isoformat(),'ends_at':(timestamp+timedelta(days=1)).isoformat(),'duration_minutes':180}
         response=admin.post('/api/admin/olympiads/'+oid+'/stages',json=stage);assert response.status_code==201,response.text
         sid=response.json()['id']
         # Deliberately import out of order: the participant must still see chapter order.
         tasks = {}
-        for chapter in reversed([t for t in PACK['tasks'] if t['kind']=='code']):
+        for chapter in reversed([t for t in pack['tasks'] if t['kind']=='code']):
             response=admin.post('/api/admin/stages/'+sid+'/tasks',json=task_input(chapter).model_dump()|{'position':chapter['chapter']})
             assert response.status_code==201,response.text
             tasks[chapter['chapter']]=response.json()['id']
-        response=student.post('/api/registrations/'+oid,json={'school_class':10,'consent_data':True,'consent_rules':True});assert response.status_code==201,response.text
+        response=student.post('/api/registrations/'+oid,json={('school_class' if audience=='SCHOOL' else 'course'):(10 if audience=='SCHOOL' else 1),'consent_data':True,'consent_rules':True});assert response.status_code==201,response.text
         assert student.post('/api/stages/'+sid+'/start').status_code==200
         assert student.get('/api/stages/'+sid+'/academy-ending').status_code==403
-        assert academy_clients['spo1'].get('/api/stages/'+sid+'/academy-progress').status_code==403
+        assert academy_clients['spo1' if audience=='SCHOOL' else 'school'].get('/api/stages/'+sid+'/academy-progress').status_code==403
         visible=student.get('/api/stages/'+sid+'/tasks').json()
-        assert [t['academy_chapter'] for t in visible]==list(range(1,9))
+        assert [t['academy_chapter'] for t in visible]==sorted(chapters)
         assert all('tests' not in t and all(c['public'] for c in t['examples']) for t in visible)
-        run=student.post('/api/tasks/'+tasks[8]+'/submissions',json={'mode':'run','code':SOLUTIONS[8]})
+        run=student.post('/api/tasks/'+tasks[8]+'/submissions',json={'mode':'run','code':solutions[8]})
         assert run.status_code==202,run.text
         assert checked(student,run.json()['id'])['status']=='Accepted'
         assert student.get('/api/stages/'+sid+'/academy-ending').status_code==403
-        for number in range(1,9):
-            sent=student.post('/api/tasks/'+tasks[number]+'/submissions',json={'mode':'submit','code':SOLUTIONS[number]})
+        for number in chapters:
+            sent=student.post('/api/tasks/'+tasks[number]+'/submissions',json={'mode':'submit','code':solutions[number]})
             assert sent.status_code==202,sent.text
             result=checked(student,sent.json()['id'])
             assert result['status']=='Accepted' and result['score']==100,result
             assert all(set(t)=={'status'} for t in result['result']['tests'])
         progress=student.get('/api/stages/'+sid+'/academy-progress').json()
-        assert progress=={'completed_chapters':list(range(1,9)),'ending_unlocked':True}
+        assert progress=={'completed_chapters':sorted(chapters),'ending_unlocked':True}
         ending=student.get('/api/stages/'+sid+'/academy-ending')
         assert ending.status_code==200 and 'забытый ИИ' in ending.json()['text']
         profile=student.get('/api/profile').json()

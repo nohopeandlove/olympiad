@@ -27,7 +27,7 @@ class Job(BaseModel):
 def execute(job,case):
     container=None; sock=None
     try:
-        container=client.containers.create(IMAGE,network_mode='none',user='0:0',read_only=True,cap_drop=['ALL'],cap_add=['SETUID','SETGID','KILL'],security_opt=['no-new-privileges:true'],pids_limit=16,mem_limit=f'{job.memory_limit}m',memswap_limit=f'{job.memory_limit}m',nano_cpus=1_000_000_000,ulimits=[docker.types.Ulimit(name='nofile',soft=32,hard=32),docker.types.Ulimit(name='fsize',soft=1048576,hard=1048576),docker.types.Ulimit(name='cpu',soft=job.time_limit,hard=job.time_limit+1)],tmpfs={'/tmp':'rw,noexec,nosuid,nodev,size=8m,mode=1777'},stdin_open=True,detach=True,log_config=docker.types.LogConfig(type='json-file',config={'max-size':'128k','max-file':'1'}),environment={})
+        container=client.containers.create(IMAGE,network_mode='none',user='0:0',read_only=True,cap_drop=['ALL'],cap_add=['SETUID','SETGID','KILL'],security_opt=['no-new-privileges:true'],pids_limit=16,mem_limit=f'{job.memory_limit}m',memswap_limit=f'{job.memory_limit}m',nano_cpus=1_000_000_000,ulimits=[docker.types.Ulimit(name='nofile',soft=32,hard=32),docker.types.Ulimit(name='fsize',soft=1048576,hard=1048576),docker.types.Ulimit(name='cpu',soft=job.time_limit,hard=job.time_limit+1)],tmpfs={'/tmp':'rw,noexec,nosuid,nodev,size=8m,mode=1777'},stdin_open=True,detach=True,log_config=docker.types.LogConfig(type='json-file',config={'max-size':'16m','max-file':'1'}),environment={})
         sock=container.attach_socket(params={'stdin':1,'stdout':0,'stderr':0,'stream':1})
         container.start()
         payload=json.dumps({'code':job.code,'input':case.input,'timeout':job.time_limit}).encode()+b'\n'
@@ -42,10 +42,13 @@ def execute(job,case):
         if container.attrs['State'].get('OOMKilled'): return {'status':'Memory Limit Exceeded'}
         # Only the root supervisor writes to this channel; user stdout/stderr are captured.
         data=container.logs(stdout=True,stderr=False)
-        if len(data)>100000: return {'status':'System Error'}
+        if len(data)>16 * 1024 * 1024: return {'status':'System Error'}
         result=json.loads(data)
         if result['status']=='OK':
             result['status']='Accepted' if result['stdout'].split()==case.expected.split() else 'Wrong Answer'
+        # Compare the full bounded output first; shorten only the displayed console.
+        result['stdout']=result.get('stdout','')[:16384]
+        result['stderr']=result.get('stderr','')[:4096]
         return result
     except Exception:
         logging.exception('Sandbox infrastructure failure')

@@ -1,0 +1,909 @@
+{
+  "key": "academy-null-v2",
+  "title": "Сбой в Академии Алгоритмов — два этапа",
+  "intro": "В городе Питония Академия Алгоритмов управляет дверями, транспортом и энергосистемой. Ночью неизвестный вирус Null захватил главный сервер. Ты — ученик-программист, оказавшийся внутри Академии. Восстанови доступ, доберись до серверной и останови сбой.",
+  "finale": "Доступ к ядру восстановлен. На экране появляется архив: NULL / экспериментальный интеллект Академии. Это не чужой вирус, а забытый ИИ, который всё ещё выполняет старый протокол. «Вы нашли меня. Теперь помогите понять, кто изменил мои инструкции». Питония снова работает, но история только начинается. Продолжение — во второй олимпиаде.",
+  "tasks": [
+    {
+      "chapter": 1,
+      "stars": 1,
+      "topic": "Числа и циклы",
+      "title": "Код от двери",
+      "statement": "Null запер дверь учебного корпуса. Код равен сумме цифр числа на панели. Найдите сумму цифр неотрицательного целого N.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "Одно целое N.",
+      "output_description": "Сумма цифр N.",
+      "constraints": "0 ≤ N ≤ 10⁹.",
+      "difficulty": "easy",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "5072",
+          "expected": "14",
+          "public": true
+        },
+        {
+          "input": "0",
+          "expected": "0",
+          "public": true
+        },
+        {
+          "input": "9",
+          "expected": "9",
+          "public": false
+        },
+        {
+          "input": "10",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "1000000000",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "999999999",
+          "expected": "81",
+          "public": false
+        },
+        {
+          "input": "123456789",
+          "expected": "45",
+          "public": false
+        },
+        {
+          "input": "1002003",
+          "expected": "6",
+          "public": false
+        }
+      ],
+      "key": "1",
+      "kind": "code",
+      "stage_kind": "qualifying",
+      "position": 1,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "key": "q1",
+      "chapter": null,
+      "stars": 1,
+      "topic": "Основы Python",
+      "title": "Диагностика панели",
+      "kind": "choice",
+      "stage_kind": "qualifying",
+      "position": 2,
+      "statement": "Панель двери хранит число 5072. Какую сумму цифр должна получить программа?",
+      "input_description": "",
+      "output_description": "",
+      "constraints": "",
+      "difficulty": "easy",
+      "points": 50,
+      "time_limit": 2,
+      "memory_limit": 128,
+      "tests": [],
+      "answer_options": [
+        "14",
+        "5072",
+        "5",
+        "72"
+      ],
+      "correct_option": 0,
+      "rubric": ""
+    },
+    {
+      "chapter": 2,
+      "stars": 1,
+      "topic": "Списки и максимум",
+      "title": "Повреждённый пропуск",
+      "statement": "Повреждённый пропуск показывает уровни доступа. Чтобы открыть запасной вход, найдите наибольший уровень среди N чисел.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "N, затем N целых чисел через пробел.",
+      "output_description": "Наибольшее число.",
+      "constraints": "1 ≤ N ≤ 1000; −1000 ≤ aᵢ ≤ 1000.",
+      "difficulty": "easy",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "4\n2 7 3 7",
+          "expected": "7",
+          "public": true
+        },
+        {
+          "input": "1\n-5",
+          "expected": "-5",
+          "public": true
+        },
+        {
+          "input": "3\n-4 -2 -9",
+          "expected": "-2",
+          "public": false
+        },
+        {
+          "input": "4\n0 0 0 0",
+          "expected": "0",
+          "public": false
+        },
+        {
+          "input": "2\n1000 -1000",
+          "expected": "1000",
+          "public": false
+        },
+        {
+          "input": "5\n1 2 3 4 5",
+          "expected": "5",
+          "public": false
+        }
+      ],
+      "key": "2",
+      "kind": "code",
+      "stage_kind": "qualifying",
+      "position": 3,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "key": "q2",
+      "chapter": null,
+      "stars": 1,
+      "topic": "Основы Python",
+      "title": "Архив уровней",
+      "kind": "text",
+      "stage_kind": "qualifying",
+      "position": 4,
+      "statement": "Уровни доступа: 2, 7, 3, 7. Объясните, как найти максимальный уровень за один проход по списку. Какое значение получится? Что делать, если все уровни отрицательные?",
+      "input_description": "",
+      "output_description": "",
+      "constraints": "",
+      "difficulty": "easy",
+      "points": 50,
+      "time_limit": 2,
+      "memory_limit": 128,
+      "tests": [],
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": "50 баллов: 20 — описан проход с обновлением максимума; 20 — получен ответ 7; 10 — начальное значение берётся из списка, а не 0, объяснён случай отрицательных чисел."
+    },
+    {
+      "chapter": 3,
+      "stars": 2,
+      "topic": "Строки",
+      "title": "Сообщение Null",
+      "statement": "Null оставил зеркальное сообщение. Проверьте, читается ли строка одинаково слева направо и справа налево. Символы удалять не нужно.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "Непустая строка из строчных латинских букв.",
+      "output_description": "YES, если строка — палиндром, иначе NO.",
+      "constraints": "1 ≤ длина строки ≤ 1000.",
+      "difficulty": "easy",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "level",
+          "expected": "YES",
+          "public": true
+        },
+        {
+          "input": "python",
+          "expected": "NO",
+          "public": true
+        },
+        {
+          "input": "a",
+          "expected": "YES",
+          "public": false
+        },
+        {
+          "input": "aa",
+          "expected": "YES",
+          "public": false
+        },
+        {
+          "input": "ab",
+          "expected": "NO",
+          "public": false
+        },
+        {
+          "input": "abba",
+          "expected": "YES",
+          "public": false
+        },
+        {
+          "input": "abcba",
+          "expected": "YES",
+          "public": false
+        },
+        {
+          "input": "abca",
+          "expected": "NO",
+          "public": false
+        }
+      ],
+      "key": "3",
+      "kind": "code",
+      "stage_kind": "qualifying",
+      "position": 5,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "key": "q3",
+      "chapter": null,
+      "stars": 1,
+      "topic": "Основы Python",
+      "title": "Проверка сообщения",
+      "kind": "choice",
+      "stage_kind": "qualifying",
+      "position": 6,
+      "statement": "Какое сообщение является палиндромом без удаления символов?",
+      "input_description": "",
+      "output_description": "",
+      "constraints": "",
+      "difficulty": "easy",
+      "points": 50,
+      "time_limit": 2,
+      "memory_limit": 128,
+      "tests": [],
+      "answer_options": [
+        "python",
+        "level",
+        "null",
+        "server"
+      ],
+      "correct_option": 1,
+      "rubric": ""
+    },
+    {
+      "chapter": 4,
+      "stars": 1,
+      "topic": "Списки и условия",
+      "title": "Энергетический тоннель",
+      "statement": "В энергетическом тоннеле стоят платформы. У каждой записана энергия. Посчитайте платформы с положительной энергией: только они включены.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "N, затем N целых значений энергии.",
+      "output_description": "Количество значений больше нуля.",
+      "constraints": "1 ≤ N ≤ 1000; −1000 ≤ aᵢ ≤ 1000.",
+      "difficulty": "easy",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "5\n3 -1 0 7 2",
+          "expected": "3",
+          "public": true
+        },
+        {
+          "input": "3\n0 -2 -1",
+          "expected": "0",
+          "public": true
+        },
+        {
+          "input": "1\n1",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "1\n0",
+          "expected": "0",
+          "public": false
+        },
+        {
+          "input": "4\n1 2 3 4",
+          "expected": "4",
+          "public": false
+        },
+        {
+          "input": "4\n-1 0 1 0",
+          "expected": "1",
+          "public": false
+        }
+      ],
+      "key": "4",
+      "kind": "code",
+      "stage_kind": "qualifying",
+      "position": 7,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "key": "q4",
+      "chapter": null,
+      "stars": 1,
+      "topic": "Основы Python",
+      "title": "Отчёт об энерготоннеле",
+      "kind": "text",
+      "stage_kind": "qualifying",
+      "position": 8,
+      "statement": "Энергия платформ: [3, -1, 0, 7, 2]. Какие платформы включены и сколько их? Объясните проверку условия и почему ноль не включается.",
+      "input_description": "",
+      "output_description": "",
+      "constraints": "",
+      "difficulty": "easy",
+      "points": 50,
+      "time_limit": 2,
+      "memory_limit": 128,
+      "tests": [],
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": "50 баллов: 20 — перечислены положительные энергии 3, 7, 2 и ответ 3; 20 — описан перебор и проверка > 0; 10 — объяснено, почему 0 не подходит."
+    },
+    {
+      "chapter": 5,
+      "stars": 2,
+      "topic": "Два вложенных цикла",
+      "title": "Два ключа",
+      "statement": "Вы добрались до склада ключей. Дверь открывают два разных ключа с суммой кодов K. Посчитайте пары позиций i < j, для которых aᵢ + aⱼ = K. Одинаковые коды допустимы; каждый ключ — отдельный предмет.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "N и K, затем N целых кодов.",
+      "output_description": "Количество подходящих пар ключей.",
+      "constraints": "1 ≤ N ≤ 100; −1000 ≤ K, aᵢ ≤ 1000. Допустим перебор всех пар.",
+      "difficulty": "easy",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "4 5\n1 4 2 3",
+          "expected": "2",
+          "public": true
+        },
+        {
+          "input": "4 4\n2 2 2 2",
+          "expected": "6",
+          "public": true
+        },
+        {
+          "input": "1 2\n1",
+          "expected": "0",
+          "public": false
+        },
+        {
+          "input": "3 0\n-1 0 1",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "3 8\n1 2 3",
+          "expected": "0",
+          "public": false
+        },
+        {
+          "input": "5 3\n1 2 1 2 1",
+          "expected": "6",
+          "public": false
+        }
+      ],
+      "key": "5",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 1,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "chapter": 9,
+      "stars": 2,
+      "topic": "Строки и счётчик",
+      "title": "Журнал событий",
+      "statement": "Null оставил следы в журнале склада. Найдите аварийные записи.\n\n### Задача\n\nПосчитайте строки, в точности равные ERROR. Регистр имеет значение.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "N, затем N строк; каждая — OK, WARN или ERROR.",
+      "output_description": "Количество ERROR.",
+      "constraints": "1 ≤ N ≤ 1000.",
+      "difficulty": "normal",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "5\nOK\nERROR\nWARN\nERROR\nOK",
+          "expected": "2",
+          "public": true
+        },
+        {
+          "input": "1\nOK",
+          "expected": "0",
+          "public": true
+        },
+        {
+          "input": "1\nERROR",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "3\nERROR\nERROR\nERROR",
+          "expected": "3",
+          "public": false
+        },
+        {
+          "input": "2\nWARN\nWARN",
+          "expected": "0",
+          "public": false
+        },
+        {
+          "input": "4\nWARN\nOK\nERROR\nWARN",
+          "expected": "1",
+          "public": false
+        }
+      ],
+      "key": "9",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 2,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "chapter": 10,
+      "stars": 2,
+      "topic": "Цикл и непрерывный участок",
+      "title": "Сигнал тревоги",
+      "statement": "Аварийный маяк мигает единицами, а паузы отмечены нулями.\n\n### Задача\n\nНайдите длину самого длинного непрерывного участка из единиц. Если единиц нет, ответ 0.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "N, затем N чисел 0 или 1.",
+      "output_description": "Длина самого длинного участка единиц.",
+      "constraints": "1 ≤ N ≤ 1000.",
+      "difficulty": "normal",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "7\n1 1 0 1 1 1 0",
+          "expected": "3",
+          "public": true
+        },
+        {
+          "input": "3\n0 0 0",
+          "expected": "0",
+          "public": true
+        },
+        {
+          "input": "1\n1",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "4\n1 1 1 1",
+          "expected": "4",
+          "public": false
+        },
+        {
+          "input": "5\n1 0 1 0 1",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "6\n0 1 1 0 1 1",
+          "expected": "2",
+          "public": false
+        }
+      ],
+      "key": "10",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 3,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "chapter": 6,
+      "stars": 2,
+      "topic": "Списки и поиск препятствий",
+      "title": "Лабиринт Академии",
+      "statement": "Null заблокировал линейный коридор Академии. Комнаты пронумерованы от 1 до N, переход между соседними занимает минуту. Вы идёте из комнаты S в T. В каждой комнате 0 означает свободный проход, 1 — блокировку. Если на участке от S до T включительно есть блокировка, путь невозможен.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "N, S и T; затем N чисел 0 или 1.",
+      "output_description": "Расстояние |S − T| или −1, если путь заблокирован.",
+      "constraints": "1 ≤ N ≤ 1000; 1 ≤ S, T ≤ N.",
+      "difficulty": "easy",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "5 1 4\n0 0 0 0 1",
+          "expected": "3",
+          "public": true
+        },
+        {
+          "input": "5 1 5\n0 0 1 0 0",
+          "expected": "-1",
+          "public": true
+        },
+        {
+          "input": "1 1 1\n0",
+          "expected": "0",
+          "public": false
+        },
+        {
+          "input": "1 1 1\n1",
+          "expected": "-1",
+          "public": false
+        },
+        {
+          "input": "4 4 2\n1 0 0 0",
+          "expected": "2",
+          "public": false
+        },
+        {
+          "input": "4 2 3\n0 1 0 0",
+          "expected": "-1",
+          "public": false
+        }
+      ],
+      "key": "6",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 4,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "chapter": 11,
+      "stars": 2,
+      "topic": "Сортировка списков",
+      "title": "Очередь роботов",
+      "statement": "Роботы охраны получили перепутанные коды. Восстановите порядок очереди.\n\n### Задача\n\nОтсортируйте N целых кодов по возрастанию. Повторяющиеся коды сохраняются.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "N, затем N кодов.",
+      "output_description": "Коды по возрастанию через пробел.",
+      "constraints": "1 ≤ N ≤ 1000; −1000 ≤ aᵢ ≤ 1000.",
+      "difficulty": "normal",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "4\n3 1 3 2",
+          "expected": "1 2 3 3",
+          "public": true
+        },
+        {
+          "input": "1\n-1",
+          "expected": "-1",
+          "public": true
+        },
+        {
+          "input": "4\n0 -5 2 -5",
+          "expected": "-5 -5 0 2",
+          "public": false
+        },
+        {
+          "input": "3\n1 2 3",
+          "expected": "1 2 3",
+          "public": false
+        },
+        {
+          "input": "3\n3 2 1",
+          "expected": "1 2 3",
+          "public": false
+        },
+        {
+          "input": "3\n7 7 7",
+          "expected": "7 7 7",
+          "public": false
+        }
+      ],
+      "key": "11",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 5,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "chapter": 12,
+      "stars": 3,
+      "topic": "Счётчик и условия",
+      "title": "Контрольные скобки",
+      "statement": "Команды Null повреждают конфигурацию дверей. Проверьте скобки в ней.\n\n### Задача\n\nСтрока содержит только ( и ). Выведите YES, если каждой открывающей скобке соответствует закрывающая, а в любом префиксе открывающих не меньше закрывающих. Иначе NO.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "Непустая строка скобок.",
+      "output_description": "YES или NO.",
+      "constraints": "1 ≤ длина строки ≤ 1000.",
+      "difficulty": "normal",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "(())()",
+          "expected": "YES",
+          "public": true
+        },
+        {
+          "input": ")(",
+          "expected": "NO",
+          "public": true
+        },
+        {
+          "input": "(",
+          "expected": "NO",
+          "public": false
+        },
+        {
+          "input": ")",
+          "expected": "NO",
+          "public": false
+        },
+        {
+          "input": "()",
+          "expected": "YES",
+          "public": false
+        },
+        {
+          "input": "(()",
+          "expected": "NO",
+          "public": false
+        },
+        {
+          "input": "())(",
+          "expected": "NO",
+          "public": false
+        },
+        {
+          "input": "((()))",
+          "expected": "YES",
+          "public": false
+        }
+      ],
+      "key": "12",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 6,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "chapter": 7,
+      "stars": 2,
+      "topic": "Деление и остаток",
+      "title": "Резервное питание",
+      "statement": "Вы восстановили проводку серверной. Для запуска нужно ровно N единиц энергии. Есть неограниченное число батарей ёмкостью 1 и 2. Найдите минимальное количество батарей.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "Одно целое N.",
+      "output_description": "Минимальное число батарей.",
+      "constraints": "0 ≤ N ≤ 10⁹.",
+      "difficulty": "easy",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "7",
+          "expected": "4",
+          "public": true
+        },
+        {
+          "input": "0",
+          "expected": "0",
+          "public": true
+        },
+        {
+          "input": "1",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "2",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "8",
+          "expected": "4",
+          "public": false
+        },
+        {
+          "input": "1000000000",
+          "expected": "500000000",
+          "public": false
+        },
+        {
+          "input": "999999999",
+          "expected": "500000000",
+          "public": false
+        }
+      ],
+      "key": "7",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 7,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "chapter": 13,
+      "stars": 3,
+      "topic": "Таблица и простой поиск минимума",
+      "title": "Маршрут питания",
+      "statement": "Чтобы запитать серверную, проложите кабель через прямоугольный щит.\n\n### Задача\n\nВ каждой клетке H × W записана стоимость. Из верхней левой клетки можно идти только вправо или вниз. Найдите минимальную сумму стоимостей до нижней правой клетки, включая обе крайние клетки.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "H и W, затем H строк по W чисел.",
+      "output_description": "Минимальная сумма.",
+      "constraints": "1 ≤ H, W ≤ 20; 0 ≤ стоимость ≤ 100. Подсказка: до клетки можно прийти только сверху или слева.",
+      "difficulty": "normal",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "2 3\n1 9 1\n2 1 3",
+          "expected": "7",
+          "public": true
+        },
+        {
+          "input": "1 1\n7",
+          "expected": "7",
+          "public": true
+        },
+        {
+          "input": "1 3\n2 0 3",
+          "expected": "5",
+          "public": false
+        },
+        {
+          "input": "3 1\n1\n2\n3",
+          "expected": "6",
+          "public": false
+        },
+        {
+          "input": "2 2\n0 0\n0 0",
+          "expected": "0",
+          "public": false
+        },
+        {
+          "input": "3 3\n1 1 9\n9 1 9\n9 1 1",
+          "expected": "5",
+          "public": false
+        }
+      ],
+      "key": "13",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 8,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "chapter": 14,
+      "stars": 2,
+      "topic": "Множество или список уникальных символов",
+      "title": "Фрагменты ключа",
+      "statement": "Главный ключ разделён на буквы. Восстановите сведения об архиве.\n\n### Задача\n\nПосчитайте количество различных символов в строке из строчных латинских букв.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "Непустая строка.",
+      "output_description": "Число различных букв.",
+      "constraints": "1 ≤ длина строки ≤ 1000.",
+      "difficulty": "normal",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "academy",
+          "expected": "6",
+          "public": true
+        },
+        {
+          "input": "aaaa",
+          "expected": "1",
+          "public": true
+        },
+        {
+          "input": "a",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "abc",
+          "expected": "3",
+          "public": false
+        },
+        {
+          "input": "null",
+          "expected": "3",
+          "public": false
+        },
+        {
+          "input": "abcdefghijklmnopqrstuvwxyz",
+          "expected": "26",
+          "public": false
+        },
+        {
+          "input": "abacaba",
+          "expected": "3",
+          "public": false
+        }
+      ],
+      "key": "14",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 9,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    },
+    {
+      "chapter": 8,
+      "stars": 3,
+      "topic": "Сравнение двух маршрутов",
+      "title": "Последний протокол",
+      "statement": "Вы стоите у узла 1 центрального сервера. Переход к соседнему узлу стоит одну секунду. Единственный телепорт ведёт из узла 1 в узел P и тоже занимает одну секунду. Найдите минимальное время до узла N: можно идти пешком или один раз воспользоваться телепортом.\n\nСчитывайте данные без текстовых приглашений. Выведите только ответ.",
+      "input_description": "Два целых числа N и P.",
+      "output_description": "Минимальное число секунд.",
+      "constraints": "1 ≤ P ≤ N ≤ 10⁹.",
+      "difficulty": "normal",
+      "time_limit": 2,
+      "memory_limit": 128,
+      "points": 100,
+      "tests": [
+        {
+          "input": "10 8",
+          "expected": "3",
+          "public": true
+        },
+        {
+          "input": "1 1",
+          "expected": "0",
+          "public": true
+        },
+        {
+          "input": "2 2",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "5 1",
+          "expected": "4",
+          "public": false
+        },
+        {
+          "input": "5 5",
+          "expected": "1",
+          "public": false
+        },
+        {
+          "input": "1000000000 999999999",
+          "expected": "2",
+          "public": false
+        },
+        {
+          "input": "4 2",
+          "expected": "3",
+          "public": false
+        }
+      ],
+      "key": "8",
+      "kind": "code",
+      "stage_kind": "main",
+      "position": 10,
+      "answer_options": [],
+      "correct_option": null,
+      "rubric": ""
+    }
+  ],
+  "stages": [
+    {
+      "kind": "qualifying",
+      "title": "Отборочный · Побег из учебного корпуса",
+      "duration_minutes": 120,
+      "story_intro": "Питония погрузилась во тьму. Null заблокировал учебный корпус Академии. Вы оказались у закрытой двери: восстановите пропуск, расшифруйте сообщение и пройдите энергетический тоннель. Между главами аварийная система задаёт контрольные вопросы — ей нужно убедиться, что вы понимаете свои решения."
+    },
+    {
+      "kind": "main",
+      "title": "Основной · Доступ к ядру Null",
+      "duration_minutes": 180,
+      "story_intro": "Вы выбрались из учебного корпуса. Теперь пройдите десять испытаний: восстановите журнал, отключите тревогу, помогите роботам, проверьте конфигурацию, проложите питание и соберите ключ. Последний протокол откроет правду о Null."
+    }
+  ],
+  "audience": "SCHOOL",
+  "rules": "## Миссия\nОтборочный этап: 8 заданий — четыре задачи на Python и четыре контрольных вопроса (600 баллов). Основной этап: 10 задач на Python (1000 баллов). Максимум — 1600 баллов. Школьная версия: основы Python, строки, списки и простые циклы. Код оценивается по доле пройденных тестов; вопросы с выбором ответа — автоматически, развёрнутые ответы — преподавателем. На контрольный вопрос можно отправить один окончательный ответ. Задания можно решать в любом порядке внутри этапа. Финал откроется после принятого официального решения «Последнего протокола». Решайте самостоятельно."
+}
